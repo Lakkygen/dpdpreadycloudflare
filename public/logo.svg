@@ -1,14 +1,56 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" fill="none">
+<svg width="440" height="310" viewBox="0 0 440 310" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#3B82F6"/>
-      <stop offset="100%" stop-color="#06B6D4"/>
+    <!-- Deep Navy Shield Gradient -->
+    <linearGradient id="navyGrad" x1="20%" y1="15%" x2="85%" y2="90%" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#0A2540"/>
+      <stop offset="100%" stop-color="#132E5E"/>
     </linearGradient>
+    
+    <!-- Emerald Green Gradient -->
+    <linearGradient id="greenGrad" x1="35%" y1="25%" x2="95%" y2="75%" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#00D4A5"/>
+      <stop offset="100%" stop-color="#00A37E"/>
+    </linearGradient>
+    
+    <!-- Gold Checkmark Gradient -->
+    <linearGradient id="goldGrad" x1="40%" y1="30%" x2="70%" y2="80%" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#F4D88C"/>
+      <stop offset="100%" stop-color="#E8B923"/>
+    </linearGradient>
+    
+    <!-- Soft Shadow Filter -->
+    <filter id="shadow" x="-20%" y="-20%" width="150%" height="150%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
+      <feOffset dx="3" dy="6" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.6"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
-  <!-- Shield icon -->
-  <path d="M12 8c0-4 2-6 6-7 4 1 6 3 6 7v6c0 4-2 8-6 10-4-2-6-6-6-10V8z" fill="url(#grad)" stroke="#2563EB" stroke-width="1.5"/>
-  <path d="M14 18l3 3 6-6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- Wordmark -->
-  <text x="34" y="27" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="20" fill="#111827">DPDP</text>
-  <text x="82" y="27" font-family="system-ui, -apple-system, sans-serif" font-weight="400" font-size="20" fill="#6B7280">ready</text>
+
+  <!-- Main Shield - Premium curved shape -->
+  <path d="M220 48 L135 82 L135 175 Q135 242 220 272 Q305 242 305 175 L305 82 L220 48 Z" 
+        fill="url(#navyGrad)" stroke="#0A2540" stroke-width="22" stroke-linejoin="round" filter="url(#shadow)"/>
+
+  <!-- Green Right Panel -->
+  <path d="M220 48 L305 82 L305 175 Q305 242 220 272 L220 215 L270 175 L220 135 Z" 
+        fill="url(#greenGrad)" opacity="0.95"/>
+
+  <!-- Premium Checkmark -->
+  <path d="M158 168 L185 205 L265 115" fill="none" stroke="#E8B923" stroke-width="34" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M158 168 L185 205 L265 115" fill="none" stroke="url(#goldGrad)" stroke-width="26" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M158 168 L185 205 L265 115" fill="none" stroke="#00D4A5" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+
+  <!-- Text: DPDPReady -->
+  <text x="220" y="235" text-anchor="middle" fill="#0A2540" font-family="'Helvetica Black', 'Arial Black', system-ui" 
+        font-size="54" font-weight="900" letter-spacing="-2.8px" 
+        paint-order="stroke fill" stroke="#0A2540" stroke-width="4">DPDPReady</text>
+
+  <!-- Text: India -->
+  <text x="220" y="268" text-anchor="middle" fill="#1E40A0" font-family="'Helvetica Neue', 'Arial', system-ui" 
+        font-size="26" font-weight="600" letter-spacing="4.5px" tracking="widest">INDIA</text>
 </svg>
