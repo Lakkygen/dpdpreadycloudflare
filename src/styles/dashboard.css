@@ -1,0 +1,70 @@
+/* ---- Dashboard Score Ring (already done inline, but extra classes) ---- */
+.score-ring {
+  transition: stroke-dashoffset 1.5s ease;
+}
+
+.score-ring-bg {
+  stroke: #f1f5f9;
+}
+
+.score-ring-fill {
+  stroke: url(#scoreGradient);
+  stroke-linecap: round;
+}
+
+/* ---- Severity table rows ---- */
+.issue-row {
+  transition: background-color 0.2s;
+}
+
+.issue-row:hover {
+  background-color: #f8fafc;
+}
+
+/* ---- Sidebar collapse animation ---- */
+.sidebar {
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar.collapsed .nav-label {
+  opacity: 0;
+  width: 0;
+  transition: opacity 0.15s, width 0.15s;
+}
+
+/* ---- Monitoring toggle switch ---- */
+.toggle-switch {
+  @apply relative inline-flex h-6 w-11 items-center rounded-full transition-colors;
+}
+.toggle-switch.on {
+  @apply bg-blue-600;
+}
+.toggle-switch.off {
+  @apply bg-gray-300;
+}
+.toggle-switch .thumb {
+  @apply inline-block h-4 w-4 transform rounded-full bg-white transition-transform;
+}
+.toggle-switch.on .thumb {
+  transform: translateX(1.25rem);
+}
+.toggle-switch.off .thumb {
+  transform: translateX(0.25rem);
+}
+
+/* ---- Timeline for recent scans ---- */
+.timeline-item {
+  @apply relative pl-6 pb-4 border-l-2 border-gray-200;
+}
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  @apply bg-blue-500;
+}
+.timeline-item.passed::before { @apply bg-green-500; }
+.timeline-item.failed::before { @apply bg-red-500; }
