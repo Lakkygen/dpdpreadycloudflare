@@ -1,5 +1,29 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
-  <rect width="32" height="32" rx="6" fill="#3B82F6"/>
-  <path d="M12 8c0-4 2-6 6-7 4 1 6 3 6 7v6c0 4-2 8-6 10-4-2-6-6-6-10V8z" fill="white" transform="scale(0.5) translate(8,4)"/>
-  <path d="M14 18l3 3 6-6" stroke="#3B82F6" stroke-width="1.5" transform="scale(0.5) translate(8,4)"/>
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="nGrad" x1="25%" y1="20%" x2="80%" y2="85%">
+      <stop offset="0%" stop-color="#0A2540"/>
+      <stop offset="100%" stop-color="#132E5E"/>
+    </linearGradient>
+    <linearGradient id="gGrad" x1="40%" y1="25%" x2="90%" y2="70%">
+      <stop offset="0%" stop-color="#00D4A5"/>
+      <stop offset="100%" stop-color="#00A37E"/>
+    </linearGradient>
+    <linearGradient id="goldG" x1="35%" y1="35%" x2="75%" y2="75%">
+      <stop offset="0%" stop-color="#F4D88C"/>
+      <stop offset="100%" stop-color="#E8B923"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Shield -->
+  <path d="M100 30 L63 50 L63 118 Q63 162 100 182 Q137 162 137 118 L137 50 L100 30 Z" 
+        fill="url(#nGrad)" stroke="#0A2540" stroke-width="11" stroke-linejoin="round"/>
+
+  <!-- Green Section -->
+  <path d="M100 30 L137 50 L137 118 L115 140 L100 155 L85 140 L100 118 Z" 
+        fill="url(#gGrad)"/>
+
+  <!-- Checkmark -->
+  <path d="M70 115 L85 138 L128 82" fill="none" stroke="#E8B923" stroke-width="15.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M70 115 L85 138 L128 82" fill="none" stroke="url(#goldG)" stroke-width="11.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M70 115 L85 138 L128 82" fill="none" stroke="#00D4A5" stroke-width="6.5" stroke-linejoin="round" stroke-linecap="round"/>
 </svg>
