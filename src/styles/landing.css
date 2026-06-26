@@ -1,0 +1,62 @@
+/* ---- Hero Mesh Animation ---- */
+.hero-mesh {
+  background: radial-gradient(circle at 0% 0%, rgba(59,130,246,0.1) 0%, transparent 50%),
+              radial-gradient(circle at 100% 100%, rgba(6,182,212,0.1) 0%, transparent 50%);
+}
+
+/* ---- Gradient text utility ---- */
+.gradient-text {
+  @apply bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent;
+}
+
+/* ---- Feature card hover effect ---- */
+.feature-card {
+  @apply bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all duration-300;
+}
+.feature-card:hover {
+  @apply shadow-xl -translate-y-1 border-blue-100;
+}
+
+/* ---- Pricing card popular highlight ---- */
+.pricing-popular {
+  @apply relative;
+}
+.pricing-popular::after {
+  content: 'MOST POPULAR';
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  @apply px-4 py-1 bg-blue-600 text-white text-xs font-bold rounded-full shadow-lg;
+}
+
+/* ---- CTA section with gradient ---- */
+.cta-section {
+  background: linear-gradient(135deg, #1E3A8A 0%, #0E7490 100%);
+}
+
+/* ---- Testimonial cards ---- */
+.testimonial-card {
+  @apply bg-white rounded-xl shadow-md p-6;
+}
+.testimonial-card .avatar {
+  @apply w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-cyan-400 flex items-center justify-center text-white font-bold text-lg;
+}
+
+/* ---- FAQ accordion ---- */
+.faq-item {
+  @apply border-b border-gray-200;
+}
+.faq-question {
+  @apply flex justify-between items-center w-full py-4 text-left font-medium text-gray-900 hover:text-blue-600 transition-colors;
+}
+.faq-answer {
+  @apply pb-4 text-gray-600 text-sm;
+}
+
+/* ---- Responsive tweaks for landing ---- */
+@media (max-width: 640px) {
+  .hero-mesh {
+    background: radial-gradient(circle at 50% 0%, rgba(59,130,246,0.15) 0%, transparent 70%);
+  }
+}
