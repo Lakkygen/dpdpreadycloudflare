@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import pool from '../database/db.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -22,10 +23,32 @@ export async function requireAuth(req, res, next) {
   }
 }
 
-// Optional: scan limit checker (implement based on user's plan)
+// ✅ Fully implemented checkScanLimit
 export async function checkScanLimit(req, res, next) {
-  // Example: query scans count for this user in current month
-  // and compare with plan limit (e.g., 10 for free, unlimited for paid)
-  // For now, just pass through
-  next();
+  try {
+    // Get user's plan
+    const userResult = await pool.query(
+      'SELECT plan FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    const plan = userResult.rows[0]?.plan || 'free';
+    const limits = { free: 10, pro: 100, business: 500, agency: 1000 };
+    const limit = limits[plan] || 10;
+
+    // Count scans this month using the database function
+    const countResult = await pool.query(
+      'SELECT get_user_monthly_scans($1) AS scan_count',
+      [req.user.id]
+    );
+    const count = parseInt(countResult.rows[0]?.scan_count || 0);
+
+    if (count >= limit) {
+      return res.status(429).json({
+        error: `Monthly scan limit (${limit}) reached. Upgrade your plan for more scans.`
+      });
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
 }
