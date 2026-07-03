@@ -7,6 +7,17 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 const router = express.Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+// Helper to map price IDs to plan names (adjust to your Stripe products)
+const mapPriceIdToPlan = (priceId) => {
+  const map = {
+    'price_pro_monthly': 'pro',
+    'price_business_monthly': 'business',
+    'price_agency_monthly': 'agency',
+    // Add more mappings as needed
+  };
+  return map[priceId] || 'free';
+};
+
 // Webhook endpoint – uses raw body from app-level middleware
 router.post('/webhook', asyncHandler(async (req, res) => {
   const sig = req.headers['stripe-signature'];
@@ -20,7 +31,6 @@ router.post('/webhook', asyncHandler(async (req, res) => {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // Handle the event
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object;
@@ -29,7 +39,6 @@ router.post('/webhook', asyncHandler(async (req, res) => {
       const userId = session.client_reference_id;
 
       if (userId) {
-        // Upgrade user to 'pro' and store stripe IDs
         await pool.query(
           `UPDATE users 
            SET plan = 'pro', stripe_customer_id = $1, stripe_subscription_id = $2, updated_at = NOW()
@@ -40,10 +49,24 @@ router.post('/webhook', asyncHandler(async (req, res) => {
       }
       break;
     }
+    case 'customer.subscription.updated': {
+      const subscription = event.data.object;
+      const customerId = subscription.customer;
+      // Determine new plan from the subscription's price ID
+      const priceId = subscription.items.data[0].price.id;
+      const newPlan = mapPriceIdToPlan(priceId);
+      await pool.query(
+        `UPDATE users 
+         SET plan = $1, updated_at = NOW()
+         WHERE stripe_customer_id = $2`,
+        [newPlan, customerId]
+      );
+      console.log(`Subscription updated for customer ${customerId} to plan ${newPlan}`);
+      break;
+    }
     case 'customer.subscription.deleted': {
       const subscription = event.data.object;
       const customerId = subscription.customer;
-      // Downgrade to free
       await pool.query(
         `UPDATE users 
          SET plan = 'free', stripe_subscription_id = NULL, updated_at = NOW()
@@ -53,11 +76,6 @@ router.post('/webhook', asyncHandler(async (req, res) => {
       console.log(`Subscription ${subscription.id} cancelled for customer ${customerId}`);
       break;
     }
-    case 'customer.subscription.updated': {
-      // Optionally handle subscription updates (e.g., plan changes)
-      // For simplicity, we can re-fetch the subscription and update plan if needed
-      break;
-    }
     default:
       console.log(`Unhandled event type: ${event.type}`);
   }
@@ -65,7 +83,7 @@ router.post('/webhook', asyncHandler(async (req, res) => {
   res.json({ received: true });
 }));
 
-// Create a checkout session (protected)
+// Create a checkout session
 router.post('/create-checkout', requireAuth, asyncHandler(async (req, res) => {
   const { priceId, successUrl, cancelUrl } = req.body;
   const userId = req.user.id;
