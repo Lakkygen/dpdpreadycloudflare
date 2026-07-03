@@ -42,4 +42,27 @@ router.get('/me', requireAuth, async (req, res, next) => {
   }
 });
 
+// Get current user profile (plan, subscription, scan limit)
+router.get('/profile', requireAuth, asyncHandler(async (req, res) => {
+  const result = await pool.query(
+    `SELECT id, email, full_name, plan, stripe_customer_id, stripe_subscription_id 
+     FROM users WHERE id = $1`,
+    [req.user.id]
+  );
+  if (result.rows.length === 0) {
+    return res.status(404).json({ error: 'User not found in local DB' });
+  }
+  const user = result.rows[0];
+  // Add scan limit based on plan
+  const limits = { free: 10, pro: 100, business: 500, agency: 1000 };
+  user.scanLimit = limits[user.plan] || 10;
+  // Optionally fetch current month scan count
+  const countResult = await pool.query(
+    'SELECT get_user_monthly_scans($1) AS scan_count',
+    [req.user.id]
+  );
+  user.scansUsed = parseInt(countResult.rows[0]?.scan_count || 0);
+  res.json(user);
+}));
+
 export default router;
