@@ -1,4 +1,4 @@
-import { CHECKS } from './scanner.js'; // ✅ added import
+import { CHECKS } from './scanner.js';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
@@ -26,16 +26,37 @@ export async function analyseWithAI(crawledData, heuristicResults = []) {
     };
   }
 
-  // Otherwise, call OpenRouter API
-  // (keep your existing implementation here – the following is a placeholder)
+  // Actual OpenRouter API call
   try {
-    // ... your existing code that uses OPENROUTER_API_KEY ...
-    // Example: fetch from OpenRouter, parse response, and return structured result
-    // Must return an object with: { issues, overallScore, confidence }
-    // Placeholder:
+    // 1. Build a prompt from crawled data and heuristic results
+    // 2. Call OpenRouter API (e.g., using fetch)
+    // 3. Parse the response into the required structure
+    // The response must return an object with:
+    //   issues: [ { checkId, title, description, suggestedFix, passed?, ... } ]
+    //   overallScore: number (0-100)
+    //   confidence: number (0-1)
+
+    // Placeholder – replace with your actual implementation
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-3.5-turbo',
+        messages: [
+          { role: 'system', content: 'You are a privacy compliance expert.' },
+          { role: 'user', content: `Analyze this website for DPDP compliance: ${JSON.stringify(crawledData)}` }
+        ],
+      }),
+    });
+    const data = await response.json();
+    // ... parse data and format as issues array, compute score, etc.
+    // For now, return a mock result
     return {
       issues: [],
-      overallScore: 50,
+      overallScore: 70,
       confidence: 0.8,
     };
   } catch (error) {
