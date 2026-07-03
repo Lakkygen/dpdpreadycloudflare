@@ -17,6 +17,7 @@ async function runMigrations() {
       );
     `);
 
+    // ✅ Fixed path – now points to root/migrations
     const migrationsDir = path.join(__dirname, '../../migrations');
     if (!fs.existsSync(migrationsDir)) {
       console.log('No migrations directory found.');
