@@ -1,13 +1,6 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { URL } from 'url';
-
-// Add this at the very top, after imports
-export const CHECKS = [
-  { id: 'ssl', label: 'SSL Certificate', description: 'Checks if SSL is properly configured' },
-  { id: 'cookies', label: 'Cookie Security', description: 'Checks for secure and HttpOnly flags' },
-  { id: 'headers', label: 'Security Headers', description: 'Checks for missing security headers' },
-  // ... add all your existing check definitions from your codebase
 ];
 
 // The rest of your file (performScan, etc.) remains unchanged.
