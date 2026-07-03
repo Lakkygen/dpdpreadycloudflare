@@ -20,14 +20,16 @@ export function AuthProvider({ children }) {
   // ------------------------------------------------------------------
   // Fetch enriched user data (plan, subscription) from our backend
   // ------------------------------------------------------------------
-  const fetchProfile = useCallback(async () => {
-    try {
-      const { data } = await api.get('/users/profile');
-      return data.user;
-    } catch {
-      return null;
+  const fetchProfile = async () => {
+  try {
+    const response = await api.get('/auth/profile'); // changed from '/users/profile'
+    if (response && response.plan) {
+      setUser(prev => ({ ...prev, plan: response.plan, scanLimit: response.scanLimit }));
     }
-  }, []);
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+  }
+};
 
   // ------------------------------------------------------------------
   // Build user object from Supabase session + backend metadata
