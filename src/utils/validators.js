@@ -1,53 +1,53 @@
-/**
- * Validate a URL string.
- */
-export function isValidUrl(string) {
+export function isNonEmptyString(value) {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+export function safeInteger(value, fallback = 0, min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, parsed));
+}
+
+export function isValidHttpUrl(value) {
+  if (!isNonEmptyString(value)) return false;
+
   try {
-    const url = new URL(string);
+    const url = new URL(value.trim());
     return url.protocol === 'http:' || url.protocol === 'https:';
   } catch {
     return false;
   }
 }
 
-/**
- * Email format validation (RFC 5322 simplified).
- */
-export function isValidEmail(email) {
-  const re =
-    /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-  return re.test(email);
+export function normalizeWebsiteUrl(input) {
+  if (!isNonEmptyString(input)) {
+    throw new Error('A website URL is required.');
+  }
+
+  const trimmed = input.trim();
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+
+  return `https://${trimmed}`;
 }
 
-/**
- * Password strength – at least 8 chars, 1 uppercase, 1 number.
- */
-export function isStrongPassword(password) {
-  return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(password);
+export function stripHtml(html = '') {
+  if (!isNonEmptyString(html)) return '';
+
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
-/**
- * Sanitize basic HTML (simple tag removal).
- */
-export function sanitizeHtml(html) {
-  return html.replace(/<[^>]*>/g, '');
-}
-
-/**
- * Truncate text with ellipsis.
- */
-export function truncate(text, maxLength = 100) {
-  if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength - 3) + '...';
-}
-
-/**
- * Format date to readable string.
- */
-export function formatDate(isoString) {
-  return new Date(isoString).toLocaleDateString('en-IN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+export function clampNumber(value, min = 0, max = 100) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return min;
+  return Math.min(max, Math.max(min, parsed));
 }
