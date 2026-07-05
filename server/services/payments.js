@@ -1,68 +1,109 @@
 import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2023-10-16',
+  apiVersion: '2023-10-16'
 });
 
-/**
- * Create a Stripe Checkout Session.
- * @param {string} priceId - Stripe Price ID
- * @param {string} customerId - Stripe Customer ID (optional)
- * @param {string} successUrl
- * @param {string} cancelUrl
- * @returns {object} { sessionId, url }
- */
-export async function createCheckoutSession({ priceId, customerId, successUrl, cancelUrl }) {
-  const session = await stripe.checkout.sessions.create({
-    mode: 'subscription',
-    payment_method_types: ['card'],
-    line_items: [{ price: priceId, quantity: 1 }],
-    success_url: successUrl + '?session_id={CHECKOUT_SESSION_ID}',
-    cancel_url: cancelUrl,
-    customer: customerId || undefined,
-    metadata: { product: 'dpdpready' },
-  });
-  return { sessionId: session.id, url: session.url };
+function assertStripeReady() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY is not configured.');
+  }
 }
 
-/**
- * Create a Stripe Customer Portal session.
- * @param {string} customerId
- * @param {string} returnUrl
- */
+function appendSessionPlaceholder(url) {
+  if (typeof url !== 'string' || !url.trim()) {
+    throw new Error('A success URL is required.');
+  }
+
+  if (url.includes('session_id=')) {
+    return url;
+  }
+
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}session_id={CHECKOUT_SESSION_ID}`;
+}
+
+export async function createCheckoutSession({
+  priceId,
+  customerId,
+  clientReferenceId,
+  successUrl,
+  cancelUrl,
+  metadata = {},
+  mode = 'subscription'
+}) {
+  assertStripeReady();
+
+  if (!priceId) {
+    throw new Error('priceId is required to create a checkout session.');
+  }
+
+  const session = await stripe.checkout.sessions.create({
+    mode,
+    payment_method_types: ['card'],
+    line_items: [{ price: priceId, quantity: 1 }],
+    success_url: appendSessionPlaceholder(successUrl),
+    cancel_url: cancelUrl,
+    customer: customerId || undefined,
+    client_reference_id: clientReferenceId || undefined,
+    allow_promotion_codes: true,
+    billing_address_collection: 'auto',
+    metadata: {
+      product: 'dpdpready',
+      ...metadata
+    }
+  });
+
+  return {
+    sessionId: session.id,
+    url: session.url
+  };
+}
+
 export async function createPortalSession(customerId, returnUrl) {
+  assertStripeReady();
+
+  if (!customerId) {
+    throw new Error('customerId is required to create a billing portal session.');
+  }
+
   const session = await stripe.billingPortal.sessions.create({
     customer: customerId,
-    return_url: returnUrl,
+    return_url: returnUrl
   });
+
   return { url: session.url };
 }
 
-/**
- * Cancel a subscription at period end.
- * @param {string} subscriptionId
- */
 export async function cancelSubscription(subscriptionId) {
-  const sub = await stripe.subscriptions.update(subscriptionId, {
-    cancel_at_period_end: true,
+  assertStripeReady();
+
+  if (!subscriptionId) {
+    throw new Error('subscriptionId is required.');
+  }
+
+  const subscription = await stripe.subscriptions.update(subscriptionId, {
+    cancel_at_period_end: true
   });
-  return { cancelled: sub.cancel_at_period_end };
+
+  return {
+    cancelled: subscription.cancel_at_period_end,
+    status: subscription.status
+  };
 }
 
-/**
- * Handle webhook signature verification and event processing.
- * @param {string} rawBody - raw request body
- * @param {string} signature - stripe-signature header
- * @returns {object} { type, data }
- */
 export function handleWebhook(rawBody, signature) {
-  const event = stripe.webhooks.constructEvent(
+  assertStripeReady();
+
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    throw new Error('STRIPE_WEBHOOK_SECRET is not configured.');
+  }
+
+  return stripe.webhooks.constructEvent(
     rawBody,
     signature,
     process.env.STRIPE_WEBHOOK_SECRET
   );
-  // Event types we care about:
-  // - customer.subscription.created / updated / deleted
-  // - checkout.session.completed
-  return event;
 }
+
+export default stripe;
