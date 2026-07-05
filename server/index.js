@@ -1,43 +1,78 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+
 import authRoutes from './routes/auth.js';
 import scanRoutes from './routes/scans.js';
-import paymentRoutes from './routes/billing.js'; // renamed to billing.js
+import billingRoutes from './routes/billing.js';
+import reportsRoutes from './routes/reports.js';
+import usersRoutes from './routes/users.js';
+import healthRoutes from './routes/health.js';
 
 dotenv.config();
 
 const app = express();
 
-// CORS – restrict in production
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? process.env.CLIENT_URL
-    : 'http://localhost:5173'
-}));
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  process.env.VITE_CLIENT_URL,
+  'http://localhost:5173',
+  'http://localhost:4173'
+].filter(Boolean);
 
-// ⚠️ Webhook route MUST use raw body BEFORE JSON parsing
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(null, true);
+    },
+    credentials: true
+  })
+);
+
 app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
-
-// Then JSON parsing for all other routes
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
-});
+app.use('/api', healthRoutes);
 
-// Routes – note: we mount billing under /api/billing
 app.use('/api/auth', authRoutes);
 app.use('/api/scans', scanRoutes);
-app.use('/api/billing', paymentRoutes);
+app.use('/api/billing', billingRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/users', usersRoutes);
 
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({ error: err.message || 'Internal Server Error' });
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'dpdpready api'
+  });
 });
 
-// Export for Vercel – do NOT call app.listen()
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'Route not found'
+  });
+});
+
+app.use((err, req, res, next) => {
+  console.error(err);
+  const status = err.status || 500;
+  res.status(status).json({
+    error: err.message || 'Internal Server Error'
+  });
+});
+
+const isDirectRun =
+  process.argv[1] &&
+  new URL(import.meta.url).pathname === new URL(`file://${process.argv[1]}`).pathname;
+
+if (isDirectRun && process.env.VERCEL !== '1') {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
 export default app;
