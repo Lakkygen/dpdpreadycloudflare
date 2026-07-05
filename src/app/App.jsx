@@ -1,15 +1,15 @@
-import React, { Suspense, lazy } from 'react';
+import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import LoadingSpinner from '../components/LoadingSpinner';
-import ErrorFallback from '../components/ErrorFallback'; // we'll create a premium error boundary
 
-// Global error boundary wrapper (class component for lifecycle)
-class GlobalErrorBoundary extends React.Component {
+class AppErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = {
+      hasError: false,
+      error: null
+    };
   }
 
   static getDerivedStateFromError(error) {
@@ -17,46 +17,50 @@ class GlobalErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('Global error:', error, errorInfo);
+    console.error('App error boundary caught an error:', error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
-      return <ErrorFallback error={this.state.error} />;
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-950 px-6 text-white">
+          <div className="max-w-lg rounded-2xl border border-white/10 bg-white/5 p-6 shadow-2xl">
+            <h1 className="text-2xl font-semibold">Something went wrong</h1>
+            <p className="mt-3 text-sm text-white/70">
+              The application hit an unexpected error. Refresh the page and try again.
+            </p>
+            {this.state.error ? (
+              <pre className="mt-4 overflow-auto rounded-xl bg-black/30 p-4 text-xs text-red-200">
+                {this.state.error.message}
+              </pre>
+            ) : null}
+          </div>
+        </div>
+      );
     }
+
     return this.props.children;
   }
 }
 
 export default function App() {
   return (
-    <GlobalErrorBoundary>
-      {/* Toast system: premium look */}
-      <ToastContainer
-        position="bottom-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="colored"
-        toastClassName="!bg-gray-900 !text-white !rounded-lg !shadow-xl !border !border-white/10"
-        progressClassName="!bg-gradient-to-r !from-blue-500 !to-cyan-400"
-      />
-
-      {/* Suspense for lazy pages */}
-      <Suspense
-        fallback={
-          <div className="flex items-center justify-center min-h-screen">
-            <LoadingSpinner size="xl" text="Loading application…" />
-          </div>
-        }
-      >
+    <AppErrorBoundary>
+      <div className="min-h-screen bg-slate-950 text-slate-100">
         <Outlet />
-      </Suspense>
-    </GlobalErrorBoundary>
+        <ToastContainer
+          position="bottom-right"
+          autoClose={4000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="colored"
+        />
+      </div>
+    </AppErrorBoundary>
   );
 }
