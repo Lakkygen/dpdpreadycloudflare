@@ -150,7 +150,17 @@ async function fetchPage(url) {
 }
 
 export async function crawlWebsite(inputUrl, maxPages = 3) {
-  const normalizedUrl = normalizeWebsiteUrl(inputUrl);
+  const normalizedUrl = normalizeWebsiteUrl(inputUrl); 
+  // ====== PASTE THESE 4 LINES RIGHT HERE ======
+  const isBlocked = await isBlockedHostname(normalizedUrl);
+  if (isBlocked) {
+    throw new Error('Access to internal/private network addresses is forbidden for security reasons.');
+  }
+
+  const baseUrl = new URL(normalizedUrl).origin;
+  const pages = [];
+  // ... the rest of your code continues ...
+  }
   const baseUrl = new URL(normalizedUrl).origin;
 
   const pages = [];
