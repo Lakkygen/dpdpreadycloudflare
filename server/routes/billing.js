@@ -8,18 +8,18 @@ import {
   createCheckoutSession,
   createPortalSession,
   cancelSubscription,
-  handleWebhook
+  handleWebhook,
 } from '../services/payments.js';
 
 const router = express.Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2023-10-16'
+  apiVersion: '2023-10-16',
 });
 
 const PRICE_PLAN_MAP = {
   [process.env.STRIPE_PRICE_PRO_MONTHLY]: 'pro',
   [process.env.STRIPE_PRICE_BUSINESS_MONTHLY]: 'business',
-  [process.env.STRIPE_PRICE_AGENCY_MONTHLY]: 'agency'
+  [process.env.STRIPE_PRICE_AGENCY_MONTHLY]: 'agency',
 };
 
 const mapPriceIdToPlan = (priceId) => PRICE_PLAN_MAP[priceId] || 'free';
@@ -36,7 +36,6 @@ async function getUserBillingRow(userId) {
      LIMIT 1`,
     [userId]
   );
-
   return rows[0] || null;
 }
 
@@ -67,12 +66,7 @@ router.post(
   ['/checkout-session', '/create-checkout-session'],
   requireAuth,
   asyncHandler(async (req, res) => {
-    const {
-      priceId,
-      successUrl,
-      cancelUrl,
-      metadata = {}
-    } = req.body || {};
+    const { priceId, successUrl, cancelUrl, metadata = {} } = req.body || {};
 
     if (!priceId) {
       return res.status(400).json({ error: 'priceId is required' });
@@ -82,10 +76,9 @@ router.post(
       priceId,
       customerId: req.body.customerId,
       clientReferenceId: req.user.id,
-      successUrl:
-        successUrl || `${getClientUrl()}/billing/success`,
+      successUrl: successUrl || `${getClientUrl()}/billing/success`,
       cancelUrl: cancelUrl || `${getClientUrl()}/pricing`,
-      metadata
+      metadata,
     });
 
     res.status(200).json(session);
@@ -124,12 +117,12 @@ router.post(
     const result = await cancelSubscription(user.stripe_subscription_id);
 
     await updateUserBilling(req.user.id, {
-      plan: 'free'
+      plan: 'free',
     });
 
     res.json({
       success: true,
-      ...result
+      ...result,
     });
   })
 );
@@ -143,7 +136,7 @@ router.get(
     res.json({
       plan: user?.plan || 'free',
       hasCustomer: Boolean(user?.stripe_customer_id),
-      hasSubscription: Boolean(user?.stripe_subscription_id)
+      hasSubscription: Boolean(user?.stripe_subscription_id),
     });
   })
 );
@@ -171,14 +164,12 @@ router.post(
 
         if (userId) {
           const plan = 'pro';
-
           await updateUserBilling(userId, {
             plan,
             stripe_customer_id: customerId,
-            stripe_subscription_id: subscriptionId
+            stripe_subscription_id: subscriptionId,
           });
         }
-
         break;
       }
 
@@ -198,7 +189,6 @@ router.post(
            WHERE stripe_customer_id = $3`,
           [plan, subscriptionId, customerId]
         );
-
         break;
       }
 
@@ -214,7 +204,6 @@ router.post(
            WHERE stripe_customer_id = $1`,
           [customerId]
         );
-
         break;
       }
 
@@ -228,7 +217,6 @@ router.post(
            WHERE stripe_customer_id = $1`,
           [customerId]
         );
-
         break;
       }
 
