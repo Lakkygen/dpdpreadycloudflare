@@ -1,17 +1,16 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 import pool from '../database/db.js';
 
 const router = express.Router();
 
-// Sync user data from Supabase to your public.users table
 router.post('/sync', requireAuth, async (req, res, next) => {
   const { id, email, full_name } = req.user;
   if (!id || !email) {
     return res.status(400).json({ error: 'Incomplete user data' });
   }
   try {
-    // Upsert user
     const result = await pool.query(
       `INSERT INTO users (id, email, full_name, updated_at)
        VALUES ($1, $2, $3, NOW())
@@ -26,7 +25,6 @@ router.post('/sync', requireAuth, async (req, res, next) => {
   }
 });
 
-// Get current user profile
 router.get('/me', requireAuth, async (req, res, next) => {
   try {
     const result = await pool.query(
@@ -42,7 +40,6 @@ router.get('/me', requireAuth, async (req, res, next) => {
   }
 });
 
-// Get current user profile (plan, subscription, scan limit)
 router.get('/profile', requireAuth, asyncHandler(async (req, res) => {
   const result = await pool.query(
     `SELECT id, email, full_name, plan, stripe_customer_id, stripe_subscription_id 
@@ -53,10 +50,8 @@ router.get('/profile', requireAuth, asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'User not found in local DB' });
   }
   const user = result.rows[0];
-  // Add scan limit based on plan
   const limits = { free: 10, pro: 100, business: 500, agency: 1000 };
   user.scanLimit = limits[user.plan] || 10;
-  // Optionally fetch current month scan count
   const countResult = await pool.query(
     'SELECT get_user_monthly_scans($1) AS scan_count',
     [req.user.id]
