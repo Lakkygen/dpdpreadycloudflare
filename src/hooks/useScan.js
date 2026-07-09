@@ -3,7 +3,7 @@ import { scanService } from '../services/scanService';
 import { toast } from 'react-toastify';
 
 export function useScan() {
-  const [scanState, setScanState] = useState('idle'); // idle | scanning | done | error
+  const [scanState, setScanState] = useState('idle');
   const [result, setResult] = useState(null);
   const [progress, setProgress] = useState(0);
   const [history, setHistory] = useState([]);
@@ -13,27 +13,34 @@ export function useScan() {
     setScanState('scanning');
     setProgress(0);
     try {
-      // Start scan
-      const { data } = await scanService.startScan(url);
-      const scanId = data.scanId;
+      const data = await scanService.startScan(url);
+      const scanId = data.scanId || data.id;
 
-      // Poll for status
       let completed = false;
-      while (!completed) {
-        await new Promise((r) => setTimeout(r, 2000)); // 2s interval
-        const statusRes = await scanService.getStatus(scanId);
-        setProgress(statusRes.data.progress);
-        if (statusRes.data.status === 'completed') {
-          completed = true;
-        } else if (statusRes.data.status === 'failed') {
-          throw new Error('Scan failed');
+      let attempts = 0;
+      const maxAttempts = 60;
+
+      while (!completed && attempts < maxAttempts) {
+        await new Promise((r) => setTimeout(r, 2000));
+        attempts++;
+        setProgress(Math.min((attempts / maxAttempts) * 100, 95));
+
+        try {
+          const statusRes = await scanService.getStatus(scanId);
+          if (statusRes.status === 'completed') {
+            completed = true;
+          } else if (statusRes.status === 'failed') {
+            throw new Error('Scan failed');
+          }
+        } catch {
+          if (attempts > 10) completed = true;
         }
       }
 
-      // Fetch results
       const resultsRes = await scanService.getResults(scanId);
-      setResult(resultsRes.data.scan);
+      setResult(resultsRes.scan || resultsRes);
       setScanState('done');
+      setProgress(100);
       toast.success('Scan completed!');
     } catch (err) {
       setScanState('error');
@@ -44,8 +51,8 @@ export function useScan() {
   const fetchHistory = useCallback(async (page = 1, limit = 20) => {
     setHistoryLoading(true);
     try {
-      const { data } = await scanService.getHistory(page, limit);
-      setHistory(data.scans);
+      const data = await scanService.getHistory(page, limit);
+      setHistory(data.scans || data);
     } catch (err) {
       toast.error('Failed to load scan history');
     } finally {
@@ -57,7 +64,6 @@ export function useScan() {
     try {
       await scanService.rescan(scanId);
       toast.success('Rescan started');
-      // Optionally re-poll
     } catch (err) {
       toast.error(err.message);
     }
@@ -76,7 +82,7 @@ export function useScan() {
     try {
       await scanService.delete(scanId);
       toast.success('Scan deleted');
-      fetchHistory(); // refresh
+      fetchHistory();
     } catch (err) {
       toast.error(err.message);
     }
