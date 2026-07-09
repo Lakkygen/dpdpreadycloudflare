@@ -1,61 +1,30 @@
-export function calculateComplianceScore(checkResults = []) {
-  if (!Array.isArray(checkResults) || checkResults.length === 0) return 0;
+import { clampNumber } from '../utils/validators.js';
 
-  const totals = checkResults.reduce(
-    (acc, item) => {
-      const weight = Number(item.weight ?? 1);
+export function calculateScore(results = []) {
+  if (!Array.isArray(results) || results.length === 0) return 0;
+
+  const weighted = results.reduce(
+    (acc, result) => {
+      const weight = Number(result.weight ?? 0);
       const score =
-        typeof item.score === 'number'
-          ? item.score
-          : item.passed === false
+        typeof result.score === 'number'
+          ? clampNumber(result.score, 0, 100)
+          : result.passed === false
             ? 0
-            : item.passed === true
-              ? 100
-              : 0;
+            : 100;
 
-      acc.weight += weight > 0 ? weight : 1;
-      acc.points += (weight > 0 ? weight : 1) * Math.max(0, Math.min(100, score));
+      acc.totalWeight += weight > 0 ? weight : 1;
+      acc.totalPoints += (weight > 0 ? weight : 1) * score;
       return acc;
     },
-    { weight: 0, points: 0 }
+    { totalWeight: 0, totalPoints: 0 }
   );
 
-  if (!totals.weight) return 0;
-  return Math.round(totals.points / totals.weight);
+  if (!weighted.totalWeight) return 0;
+  return Math.round(weighted.totalPoints / weighted.totalWeight);
 }
 
-export function scoreLabel(score) {
-  if (score >= 90) return 'Excellent';
-  if (score >= 75) return 'Strong';
-  if (score >= 60) return 'Fair';
-  if (score >= 40) return 'Weak';
-  return 'Poor';
+export function getSeverityWeight(severity) {
+  const weights = { critical: 4, high: 3, medium: 2, low: 1, passed: 0 };
+  return weights[severity] || 0;
 }
-
-export function scoreBand(score) {
-  if (score >= 90) return 'green';
-  if (score >= 75) return 'blue';
-  if (score >= 60) return 'yellow';
-  if (score >= 40) return 'orange';
-  return 'red';
-}
-
-export function normalizeCheckResults(checkResults = []) {
-  return (Array.isArray(checkResults) ? checkResults : []).map((item) => ({
-    ...item,
-    weight: Number(item.weight ?? 1),
-    score:
-      typeof item.score === 'number'
-        ? Math.max(0, Math.min(100, item.score))
-        : item.passed === false
-          ? 0
-          : 100
-  }));
-}
-
-export default {
-  calculateComplianceScore,
-  scoreLabel,
-  scoreBand,
-  normalizeCheckResults
-};
