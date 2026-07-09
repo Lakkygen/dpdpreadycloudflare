@@ -8,7 +8,6 @@ const __dirname = path.dirname(__filename);
 
 async function runMigrations() {
   try {
-    // Ensure migrations table exists
     await pool.query(`
       CREATE TABLE IF NOT EXISTS migrations (
         id SERIAL PRIMARY KEY,
@@ -17,8 +16,7 @@ async function runMigrations() {
       );
     `);
 
-    // ✅ Fixed path – now points to root/migrations
-    const migrationsDir = path.join(__dirname, '../../migrations');
+    const migrationsDir = path.join(__dirname, 'migrations');
     if (!fs.existsSync(migrationsDir)) {
       console.log('No migrations directory found.');
       return;
