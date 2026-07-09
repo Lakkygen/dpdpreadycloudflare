@@ -1,6 +1,5 @@
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
-// Helper to get token – you can read from supabase session or localStorage
 const getToken = () => localStorage.getItem('authToken');
 
 export const api = {
@@ -52,3 +51,5 @@ export const api = {
     return this.request(endpoint, { ...options, method: 'DELETE' });
   },
 };
+
+export default api;
