@@ -1,13 +1,30 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import assert from 'node:assert';
+import { calculateScore, getSeverityWeight } from './scoreCalculator.js';
 
-import { calculateComplianceScore } from '../../src/services/scoreCaculator.js';
+describe('scoreCalculator', () => {
+  it('returns 0 for empty results', () => {
+    assert.strictEqual(calculateScore([]), 0);
+  });
 
-test('calculateComplianceScore returns weighted score', () => {
-  const score = calculateComplianceScore([
-    { passed: true, weight: 2, score: 100 },
-    { passed: false, weight: 1, score: 0 }
-  ]);
+  it('calculates weighted average correctly', () => {
+    const results = [
+      { weight: 50, score: 80 },
+      { weight: 50, score: 60 },
+    ];
+    assert.strictEqual(calculateScore(results), 70);
+  });
 
-  assert.equal(score, 67);
+  it('handles passed boolean', () => {
+    const results = [
+      { weight: 100, passed: true },
+      { weight: 100, passed: false },
+    ];
+    assert.strictEqual(calculateScore(results), 50);
+  });
+
+  it('returns correct severity weights', () => {
+    assert.strictEqual(getSeverityWeight('critical'), 4);
+    assert.strictEqual(getSeverityWeight('passed'), 0);
+  });
 });
