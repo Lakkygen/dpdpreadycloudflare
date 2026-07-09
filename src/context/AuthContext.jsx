@@ -3,9 +3,6 @@ import { createClient } from '@supabase/supabase-js';
 import { toast } from 'react-toastify';
 import api from '../services/api';
 
-// ------------------------------------------------------------------
-// Supabase client – created once (must match .env keys)
-// ------------------------------------------------------------------
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -15,25 +12,21 @@ export const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(true);   // initial session recovery
+  const [loading, setLoading] = useState(true);
 
-  // ------------------------------------------------------------------
-  // Fetch enriched user data (plan, subscription) from our backend
-  // ------------------------------------------------------------------
-  const fetchProfile = async () => {
-  try {
-    const response = await api.get('/auth/profile'); // changed from '/users/profile'
-    if (response && response.plan) {
-      setUser(prev => ({ ...prev, plan: response.plan, scanLimit: response.scanLimit }));
+  const fetchProfile = useCallback(async () => {
+    try {
+      const response = await api.get('/auth/profile');
+      if (response && response.plan) {
+        return response;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      return null;
     }
-  } catch (error) {
-    console.error('Error fetching profile:', error);
-  }
-};
+  }, []);
 
-  // ------------------------------------------------------------------
-  // Build user object from Supabase session + backend metadata
-  // ------------------------------------------------------------------
   const buildUser = useCallback(async (supabaseSession) => {
     if (!supabaseSession) {
       setUser(null);
@@ -42,16 +35,16 @@ export function AuthProvider({ children }) {
     }
 
     const supabaseUser = supabaseSession.user;
-    // Store token for API calls (Supabase access_token)
     localStorage.setItem('authToken', supabaseSession.access_token);
 
-    // Merge backend metadata
     const profile = await fetchProfile();
     const mergedUser = {
       id: supabaseUser.id,
       email: supabaseUser.email,
       emailConfirmed: supabaseUser.email_confirmed_at != null,
-      plan: profile?.plan || { name: 'free', scanLimit: 3 },
+      plan: profile?.plan || 'free',
+      scanLimit: profile?.scanLimit || 10,
+      scansUsed: profile?.scansUsed || 0,
       subscription: profile?.subscription || null,
     };
 
@@ -59,9 +52,6 @@ export function AuthProvider({ children }) {
     setSession(supabaseSession);
   }, [fetchProfile]);
 
-  // ------------------------------------------------------------------
-  // Restore session on mount / refresh
-  // ------------------------------------------------------------------
   useEffect(() => {
     const init = async () => {
       try {
@@ -77,7 +67,6 @@ export function AuthProvider({ children }) {
 
     init();
 
-    // Listen for future auth state changes (Google OAuth, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
         buildUser(newSession);
@@ -87,9 +76,6 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe();
   }, [buildUser]);
 
-  // ------------------------------------------------------------------
-  // Sign in with email + password
-  // ------------------------------------------------------------------
   const signIn = async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -100,21 +86,17 @@ export function AuthProvider({ children }) {
     toast.success(`Welcome back, ${email}`);
   };
 
-  // ------------------------------------------------------------------
-  // Sign up (free tier by default)
-  // ------------------------------------------------------------------
   const signUp = async (email, password, metadata = {}) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: metadata,           // can pass plan preselection etc.
+        data: metadata,
         emailRedirectTo: `${window.location.origin}/dashboard`,
       },
     });
     if (error) throw error;
 
-    // If email confirmation is disabled in dev, session is immediately available
     if (data.session) {
       await buildUser(data.session);
       toast.success('Account created – welcome!');
@@ -123,9 +105,6 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // ------------------------------------------------------------------
-  // Google OAuth (one-click social login)
-  // ------------------------------------------------------------------
   const signInWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -134,12 +113,8 @@ export function AuthProvider({ children }) {
       },
     });
     if (error) throw error;
-    // Page will redirect – no toast needed
   };
 
-  // ------------------------------------------------------------------
-  // Sign out
-  // ------------------------------------------------------------------
   const signOut = async () => {
     await supabase.auth.signOut();
     localStorage.removeItem('authToken');
@@ -148,9 +123,6 @@ export function AuthProvider({ children }) {
     toast.info('Signed out');
   };
 
-  // ------------------------------------------------------------------
-  // Refresh plan data (e.g. after Stripe webhook)
-  // ------------------------------------------------------------------
   const refreshPlan = async () => {
     if (!user) return;
     const profile = await fetchProfile();
@@ -158,6 +130,8 @@ export function AuthProvider({ children }) {
       setUser((prev) => ({
         ...prev,
         plan: profile.plan || prev.plan,
+        scanLimit: profile.scanLimit || prev.scanLimit,
+        scansUsed: profile.scansUsed || prev.scansUsed,
         subscription: profile.subscription || prev.subscription,
       }));
     }
