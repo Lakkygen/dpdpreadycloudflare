@@ -65,4 +65,34 @@ export default function Register() {
               </div>
             </div>
             <div>
-              <label className
+                            <label className="block text-sm font-medium text-slate-300 mb-1">Confirm Password</label>
+              <div className="relative">
+                <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  required
+                />
+              </div>
+            </div>
+            <button
+              type="submit"
+              className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              <FiUserPlus /> Create Account
+            </button>
+          </form>
+          <p className="mt-6 text-center text-slate-400 text-sm">
+            Already have an account?{' '}
+            <Link to="/login" className="text-blue-400 hover:text-blue-300">
+              Sign in
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
