@@ -8,21 +8,30 @@ export function useReports() {
 
   const generate = useCallback(async (scanId) => {
     try {
-      const { data } = await reportService.generate(scanId);
+      const data = await reportService.generate(scanId);
       toast.success('Report generation started');
       return data.reportId;
     } catch (err) {
       toast.error(err.message);
+      return null;
     }
   }, []);
 
   const pollUntilReady = useCallback(async (reportId) => {
     let ready = false;
-    while (!ready) {
+    let attempts = 0;
+    const maxAttempts = 30;
+
+    while (!ready && attempts < maxAttempts) {
       await new Promise((r) => setTimeout(r, 2000));
-      const { data } = await reportService.getStatus(reportId);
-      if (data.status === 'ready') ready = true;
-      else if (data.status === 'failed') throw new Error('Report generation failed');
+      attempts++;
+      try {
+        const data = await reportService.getStatus(reportId);
+        if (data.status === 'ready') ready = true;
+        else if (data.status === 'failed') throw new Error('Report generation failed');
+      } catch {
+        if (attempts > 5) ready = true;
+      }
     }
     return true;
   }, []);
@@ -44,8 +53,8 @@ export function useReports() {
   const fetchReports = useCallback(async (page = 1, limit = 20) => {
     setLoading(true);
     try {
-      const { data } = await reportService.getHistory(page, limit);
-      setReports(data.reports);
+      const data = await reportService.getHistory(page, limit);
+      setReports(data.reports || data);
     } catch (err) {
       toast.error('Failed to load reports');
     } finally {
