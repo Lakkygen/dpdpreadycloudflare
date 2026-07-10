@@ -1,65 +1,64 @@
-/**
- * Build a structured report object from scan results.
- * Used by ReportViewer and PDF generation.
- *
- * @param {object} scan - scan result from API
- * @param {string} url - scanned URL
- * @returns {object} reportData
- */
-export function buildReportData(scan, url) {
-  const findings = (scan.issues || []).map((issue) => ({
-    check: issue.title,
-    status: issue.status,
-    severity: issue.severity,
-    description: issue.description,
-    fix: issue.suggestedFix,
-  }));
+import { stripHtml } from './validators';
 
-  const passedChecks = findings.filter((f) => f.status === 'passed').length;
-  const failedChecks = findings.filter((f) => f.status === 'failed').length;
+export function buildReportData(scan) {
+  const results = scan.results_json || scan.recommendations || {};
+  const issues = Array.isArray(results) ? results : (results.issues || []);
+  const overallScore = scan.overall_score || scan.overallScore || 0;
 
-  const executiveSummary =
-    failedChecks === 0
-      ? `Great news! ${url} is fully compliant with India’s DPDP Act based on our scan. No issues were detected.`
-      : `${url} has ${failedChecks} compliance issue${failedChecks > 1 ? 's' : ''} that need attention. The most critical areas involve ${getTopCriticalAreas(findings)}. Addressing these will bring your site into full compliance.`;
+  const severityBreakdown = {
+    critical: issues.filter((i) => i.severity === 'critical').length,
+    high: issues.filter((i) => i.severity === 'high').length,
+    medium: issues.filter((i) => i.severity === 'medium').length,
+    low: issues.filter((i) => i.severity === 'low').length,
+    passed: issues.filter((i) => i.passed === true).length,
+    total: issues.length,
+  };
+
+  const executiveSummary = generateExecutiveSummary(scan.url, overallScore, issues);
+  const actions = generateActionPlan(issues);
 
   return {
-    url,
+    url: scan.url,
+    overallScore,
     generatedAt: new Date().toISOString(),
-    overallScore: scan.overallScore ?? calculateOverallScore(scan.checks),
+    scanDate: scan.created_at || scan.crawledAt,
     executiveSummary,
-    findings,
-    actions: findings
-      .filter((f) => f.status === 'failed')
-      .map((f, i) => `${i + 1}. ${f.fix}`),
+    findings: issues.map((issue) => ({
+      check: issue.title || issue.checkId || issue.label || 'Unknown Check',
+      status: issue.passed ? 'passed' : 'failed',
+      severity: issue.severity || 'medium',
+      fix: issue.suggestedFix || issue.recommendation || 'Review and update privacy practices.',
+      evidence: issue.evidence || '',
+    })),
+    actions,
+    severityBreakdown,
   };
 }
 
-function getTopCriticalAreas(findings) {
-  const failed = findings.filter((f) => f.status === 'failed');
-  if (failed.length === 0) return 'none';
-  return failed
-    .filter((f) => f.severity === 'critical')
-    .map((f) => f.check.toLowerCase())
-    .join(', ');
+function generateExecutiveSummary(url, score, issues) {
+  const failedCount = issues.filter((i) => !i.passed).length;
+  const passedCount = issues.filter((i) => i.passed).length;
+
+  let summary = `This DPDP compliance audit for ${url} resulted in an overall score of ${score}/100. `;
+
+  if (score >= 80) {
+    summary += `The website demonstrates strong privacy compliance practices with ${passedCount} checks passed. `;
+  } else if (score >= 50) {
+    summary += `The website shows moderate compliance with ${failedCount} areas requiring attention. `;
+  } else {
+    summary += `The website requires significant privacy compliance improvements with ${failedCount} critical issues identified. `;
+  }
+
+  summary += `Key focus areas include consent management, data retention policies, and user rights implementation.`;
+  return summary;
 }
 
-/**
- * Export report data as CSV string.
- * @param {object} reportData - from buildReportData()
- * @returns {string} CSV content
- */
-export function exportToCSV(reportData) {
-  const rows = [['Check', 'Status', 'Severity', 'Fix']];
-  reportData.findings.forEach((f) =>
-    rows.push([f.check, f.status, f.severity, `"${f.fix.replace(/"/g, '""')}"`])
-  );
-  return rows.map((row) => row.join(',')).join('\n');
-}
+function generateActionPlan(issues) {
+  const failedIssues = issues.filter((i) => !i.passed);
+  if (!failedIssues.length) return ['No action required. Maintain current privacy practices.'];
 
-/**
- * Export report data as JSON.
- */
-export function exportToJSON(reportData) {
-  return JSON.stringify(reportData, null, 2);
+  return failedIssues.map((issue) => {
+    const fix = issue.suggestedFix || issue.recommendation || 'Update privacy policy and implement required controls.';
+    return `${issue.title || issue.checkId || issue.label}: ${fix}`;
+  });
 }
