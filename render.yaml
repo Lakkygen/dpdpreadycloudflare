@@ -1,1 +1,19 @@
 
+services:
+  - type: web
+    name: dpdpready-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      # Add other env vars here or in dashboard
+
+  - type: static
+    name: dpdpready-frontend
+    buildCommand: npm run build
+    staticPublishPath: dist
