@@ -71,11 +71,7 @@ const isDirectRun =
   process.argv[1] &&
   new URL(import.meta.url).pathname === new URL(`file://${process.argv[1]}`).pathname;
 
-if (isDirectRun && process.env.VERCEL !== '1') {
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
-}
-
-export default app;
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
