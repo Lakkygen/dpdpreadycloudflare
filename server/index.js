@@ -49,27 +49,16 @@ app.use('/api/billing', billingRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/users', usersRoutes);
 
-// Root API check
-app.get('/', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    service: 'dpdpready api',
-    version: '1.0.0',
-  });
-});
+// Serve static files from dist/
+app.use(express.static('dist'));
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+// SPA fallback: serve index.html for all non-API routes
+app.get('*', (req, res) => {
+  res.sendFile('index.html', { root: 'dist' });
 });
 
 // Global error handler (must be last)
 app.use(errorHandler);
-
-// Only start server if running directly (not on Vercel)
-const isDirectRun =
-  process.argv[1] &&
-  new URL(import.meta.url).pathname === new URL(`file://${process.argv[1]}`).pathname;
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
