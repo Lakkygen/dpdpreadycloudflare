@@ -5,7 +5,9 @@ import api from '../services/api';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabase = supabaseUrl && supabaseAnonKey 
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 export const AuthContext = createContext(null);
 
@@ -53,9 +55,15 @@ export function AuthProvider({ children }) {
   }, [fetchProfile]);
 
   useEffect(() => {
-    const init = async () => {
-      try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
+  if (!supabase) {
+    setLoading(false);
+    return;
+  }
+  
+  const init = async () => {
+    try {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      
         await buildUser(currentSession);
       } catch (err) {
         console.error('Session recovery failed', err);
