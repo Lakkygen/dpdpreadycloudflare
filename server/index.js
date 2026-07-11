@@ -17,6 +17,7 @@ const app = express();
 const allowedOrigins = [
   process.env.CLIENT_URL,
   process.env.VITE_CLIENT_URL,
+  'https://dpdpready.onrender.com',
   'http://localhost:5173',
   'http://localhost:4173',
 ].filter(Boolean);
@@ -26,7 +27,7 @@ app.use(
     origin(origin, callback) {
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error('Not allowed'));
+      return callback(null, true); // Allow all origins for now
     },
     credentials: true,
   })
