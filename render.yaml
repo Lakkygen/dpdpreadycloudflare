@@ -1,19 +1,32 @@
-
 services:
   - type: web
-    name: dpdpready-backend
+    name: dpdpready
     env: node
     plan: free
-    buildCommand: npm install
-    startCommand: npm start
+    buildCommand: npm install && npm run build
+    startCommand: node server/index.js
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: 10000
       - key: DATABASE_URL
         sync: false
-      # Add other env vars here or in dashboard
-
-  - type: static
-    name: dpdpready-frontend
-    buildCommand: npm run build
-    staticPublishPath: dist
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: CLIENT_URL
+        value: https://dpdpready.onrender.com
+      - key: VITE_CLIENT_URL
+        value: https://dpdpready.onrender.com
+      - key: VITE_API_URL
+        value: /api
