@@ -1,551 +1,322 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { motion, useScroll, useTransform } from 'framer-motion';
-import {
-  FiShield, FiCheckCircle, FiAlertTriangle, FiFileText,
-  FiZap, FiLock, FiGlobe, FiArrowRight, FiPlay,
-  FiStar, FiUsers, FiTrendingUp
-} from 'react-icons/fi';
-import ScanForm from '../components/ScanForm';
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 
-// ---------------------------------------------------------------------------
-// Design tokens (kept inline so this file is drop-in — move to tailwind
-// config / CSS variables if you want to reuse the palette elsewhere)
-// ---------------------------------------------------------------------------
-// paper      #F7F5F0  page background, warm official-document tone
-// paper-alt  #EFEAE0  card / alternating-section background
-// ink        #14213D  headings, primary text — deep archival navy
-// ink-soft   #5B6472  body copy
-// line       #DDD6C4  hairlines, borders
-// seal       #B8863A  primary accent — bronze/gold, evokes an official seal
-// seal-dark  #96692B  hover state for seal accent
-// verify     #3F6F5E  "compliant" / positive signal
-// alert      #B1503A  "risk" / negative signal
-// ---------------------------------------------------------------------------
-
-function useCountUp(end, duration = 2000) {
-  const [count, setCount] = useState(0);
-  useEffect(() => {
-    let startTime;
-    const animate = (currentTime) => {
-      if (!startTime) startTime = currentTime;
-      const progress = Math.min((currentTime - startTime) / duration, 1);
-      setCount(Math.floor(progress * end));
-      if (progress < 1) requestAnimationFrame(animate);
-    };
-    requestAnimationFrame(animate);
-  }, [end, duration]);
-  return count;
-}
-
-// The signature element: a rotating seal, like an official stamp of
-// verification. Reused at three scales — hero, step 3, and the closing CTA —
-// so it reads as the mark of the product rather than a one-off flourish.
-function ComplianceSeal({ size = 160, ringSpeed = 40 }) {
-  const uid = useState(() => `sealPath-${Math.random().toString(36).slice(2, 9)}`)[0];
-  return (
-    <div className="relative" style={{ width: size, height: size }}>
-      <motion.div
-        className="absolute inset-0"
-        animate={{ rotate: 360 }}
-        transition={{ duration: ringSpeed, repeat: Infinity, ease: 'linear' }}
-      >
-        <svg viewBox="0 0 200 200" className="w-full h-full">
-          <defs>
-            <path id={uid} d="M 100,100 m -82,0 a 82,82 0 1,1 164,0 a 82,82 0 1,1 -164,0" />
-          </defs>
-          <text fontSize="10.5" letterSpacing="3.2" fill="#B8863A" className="font-mono uppercase">
-            <textPath href={`#${uid}`}>
-              COMPLIANCE VERIFIED &#8226; DPDP ACT 2023 &#8226; COMPLIANCE VERIFIED &#8226; DPDP ACT 2023 &#8226;
-            </textPath>
-          </text>
-        </svg>
-      </motion.div>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div
-          className="rounded-full bg-[#14213D] border-2 border-[#B8863A] flex items-center justify-center shadow-[0_1px_0_rgba(184,134,58,0.5)_inset]"
-          style={{ width: size * 0.52, height: size * 0.52 }}
-        >
-          <FiShield style={{ width: size * 0.22, height: size * 0.22 }} className="text-[#F7F5F0]" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function FeatureCard({ eyebrow, icon, title, description, delay }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.5, delay }}
-      whileHover={{ y: -4, transition: { duration: 0.2 } }}
-      className="group bg-white border border-[#DDD6C4] rounded-lg p-6 hover:border-[#B8863A] hover:shadow-[0_8px_24px_-12px_rgba(20,33,61,0.18)] transition-all"
-    >
-      <div className="flex items-center justify-between mb-5">
-        <div className="w-11 h-11 rounded-full bg-[#F7F5F0] border border-[#DDD6C4] flex items-center justify-center group-hover:border-[#B8863A] transition-colors">
-          {icon}
-        </div>
-        <span className="font-mono text-[10px] tracking-widest uppercase text-[#B8863A]">
-          {eyebrow}
-        </span>
-      </div>
-      <h3 className="font-display text-lg text-[#14213D] mb-2">{title}</h3>
-      <p className="text-[#5B6472] text-sm leading-relaxed">{description}</p>
-    </motion.div>
-  );
-}
-
-function StepCard({ number, title, description, icon }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -16 }}
-      whileInView={{ opacity: 1, x: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.5 }}
-      className="flex gap-4 items-start"
-    >
-      <div className="flex-shrink-0 w-10 h-10 rounded-full border-2 border-[#B8863A] bg-white flex items-center justify-center text-[#14213D] font-mono text-sm font-medium">
-        {number}
-      </div>
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          {icon}
-          <h4 className="font-display text-[#14213D] text-lg">{title}</h4>
-        </div>
-        <p className="text-[#5B6472] text-sm leading-relaxed">{description}</p>
-      </div>
-    </motion.div>
-  );
-}
-
-function TestimonialCard({ name, role, company, quote, rating }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.97 }}
-      whileInView={{ opacity: 1, scale: 1 }}
-      viewport={{ once: true }}
-      className="bg-white border border-[#DDD6C4] rounded-lg p-6"
-    >
-      <div className="flex gap-1 mb-4">
-        {[...Array(5)].map((_, i) => (
-          <FiStar key={i} className={`w-4 h-4 ${i < rating ? 'text-[#B8863A] fill-[#B8863A]' : 'text-[#DDD6C4]'}`} />
-        ))}
-      </div>
-      <p className="font-display italic text-[#14213D] text-[15px] mb-5 leading-relaxed">
-        &#8220;{quote}&#8221;
-      </p>
-      <div className="flex items-center gap-3 pt-4 border-t border-[#EFEAE0]">
-        <div className="w-9 h-9 rounded-full bg-[#14213D] border border-[#B8863A] flex items-center justify-center text-[#F7F5F0] font-mono text-xs">
-          {name[0]}
-        </div>
-        <div>
-          <p className="text-[#14213D] text-sm font-medium">{name}</p>
-          <p className="font-mono text-[#5B6472] text-[11px] uppercase tracking-wide">{role}, {company}</p>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-function StatItem({ icon, value, label, suffix = '' }) {
-  const count = useCountUp(value);
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      className="text-center"
-    >
-      <div className="flex justify-center mb-2">{icon}</div>
-      <div className="font-mono text-3xl sm:text-4xl font-medium text-[#14213D] mb-1">
-        {count}{suffix}
-      </div>
-      <div className="text-[#5B6472] text-xs uppercase tracking-widest">{label}</div>
-    </motion.div>
-  );
-}
+const ShieldIcon = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
+const ScanIcon = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg>;
+const FileTextIcon = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>;
+const ZapIcon = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>;
+const CheckCircleIcon = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
+const ArrowRightIcon = () => <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>;
+const LockIcon = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>;
+const BarChartIcon = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>;
+const GlobeIcon = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>;
+const StarIcon = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>;
+const ChevronDownIcon = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>;
 
 export default function Home() {
-  const { scrollYProgress } = useScroll();
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
-  const heroScale = useTransform(scrollYProgress, [0, 0.2], [1, 0.97]);
+  const [url, setUrl] = useState("");
+  const [openFaq, setOpenFaq] = useState(0);
+
+  const features = [
+    { icon: <ScanIcon />, title: "AI-Powered Website Scan", desc: "Our engine crawls your site and analyzes every page against all 25+ DPDP Act compliance checkpoints in seconds.", color: "bg-blue-50 text-blue-600" },
+    { icon: <BarChartIcon />, title: "Instant Compliance Score", desc: "Get a clear 0-100 score broken down by category — consent, privacy policy, data security, user rights, and more.", color: "bg-indigo-50 text-indigo-600" },
+    { icon: <FileTextIcon />, title: "Board-Ready PDF Reports", desc: "Download beautifully formatted, lawyer-reviewed compliance reports you can share with stakeholders and regulators.", color: "bg-violet-50 text-violet-600" },
+    { icon: <ZapIcon />, title: "Actionable Recommendations", desc: "Every finding comes with a specific, step-by-step fix. No vague advice — just clear instructions to get compliant.", color: "bg-amber-50 text-amber-600" },
+    { icon: <LockIcon />, title: "DPDP Act Specific", desc: "Built exclusively for India's Digital Personal Data Protection Act 2023. Not a generic GDPR tool retrofitted for India.", color: "bg-emerald-50 text-emerald-600" },
+    { icon: <ShieldIcon />, title: "Continuous Monitoring", desc: "Schedule automated scans to catch compliance drift. Get alerted the moment your website falls out of compliance.", color: "bg-rose-50 text-rose-600" },
+  ];
+
+  const faqs = [
+    { q: "What is the DPDP Act and does it apply to my business?", a: "The Digital Personal Data Protection Act 2023 is India's comprehensive data privacy law. It applies to any organization processing digital personal data of individuals in India, regardless of where your business is located." },
+    { q: "How accurate is the AI-powered scan?", a: "Our engine is trained specifically on the DPDP Act and checks against 25+ compliance checkpoints. While highly accurate, we recommend consulting a legal expert for final compliance certification." },
+    { q: "Can I scan any website or just my own?", a: "You can scan any publicly accessible website. This is useful for auditing your own properties, competitive analysis, or client assessments." },
+    { q: "What does the PDF report include?", a: "Each report includes an executive summary, overall compliance score, section-by-section breakdown, risk-rated findings, and specific remediation steps." },
+    { q: "Is my data safe when I use DPDPready?", a: "Absolutely. We only scan publicly available website content. We don't store your website data permanently, and all scans are encrypted in transit." },
+    { q: "Can I get a refund if I'm not satisfied?", a: "Yes. We offer a 14-day money-back guarantee on all paid plans. Contact us for a full refund — no questions asked." },
+  ];
 
   return (
-    <div className="min-h-screen bg-[#F7F5F0] font-body overflow-x-hidden">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
-        .font-display { font-family: 'Newsreader', Georgia, serif; }
-        .font-body { font-family: 'Inter', system-ui, sans-serif; }
-        .font-mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
-      `}</style>
-
-      {/* Ambient background — quiet, paper-toned, not neon */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-[#B8863A]/[0.06] rounded-full blur-[120px]" />
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-[#3F6F5E]/[0.05] rounded-full blur-[100px]" />
-      </div>
-
+    <div className="bg-white">
       {/* Hero */}
-      <motion.section
-        style={{ opacity: heroOpacity, scale: heroScale }}
-        className="relative pt-20 pb-32 px-4 sm:px-6 lg:px-8"
-      >
-        <div className="max-w-7xl mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="flex justify-center mb-6"
-          >
-            <ComplianceSeal size={132} />
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 bg-white border border-[#DDD6C4] rounded-full text-[#14213D] text-xs font-mono uppercase tracking-widest mb-8"
-          >
-            India&#39;s DPDP Act, 2023
-          </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.15 }}
-            className="font-display text-5xl sm:text-6xl lg:text-7xl font-medium text-[#14213D] tracking-tight mb-6"
-          >
-            Privacy compliance,
-            <br />
-            <span className="italic text-[#B8863A]">made legible.</span>
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.25 }}
-            className="text-lg text-[#5B6472] max-w-2xl mx-auto mb-10 leading-relaxed"
-          >
-            Scan any website against India&#39;s DPDP Act. Get a plain-language report,
-            prioritized fixes, and a downloadable PDF — in under two minutes.
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.35 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
-          >
-            <Link
-              to="/scan"
-              className="group flex items-center gap-2 px-8 py-4 bg-[#B8863A] hover:bg-[#96692B] text-white font-medium rounded-lg transition-colors shadow-[0_10px_30px_-12px_rgba(184,134,58,0.6)]"
-            >
-              <FiZap className="w-5 h-5" />
-              Start free scan
-              <FiArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
-            <Link
-              to="/pricing"
-              className="flex items-center gap-2 px-8 py-4 bg-transparent hover:bg-white text-[#14213D] font-medium rounded-lg transition-colors border border-[#14213D]/20"
-            >
-              <FiPlay className="w-5 h-5" />
-              View pricing
-            </Link>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.45 }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto pt-10 border-t border-[#DDD6C4]"
-          >
-            <StatItem icon={<FiZap className="w-5 h-5 text-[#B8863A]" />} value={2} label="Min scan time" suffix="min" />
-            <StatItem icon={<FiCheckCircle className="w-5 h-5 text-[#3F6F5E]" />} value={50} label="Compliance checks" suffix="+" />
-            <StatItem icon={<FiShield className="w-5 h-5 text-[#14213D]" />} value={100} label="DPDP coverage" suffix="%" />
-            <StatItem icon={<FiUsers className="w-5 h-5 text-[#B1503A]" />} value={500} label="Sites scanned" suffix="+" />
-          </motion.div>
+      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-32 overflow-hidden">
+        <div className="absolute inset-0 -z-10">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-blue-100/50 rounded-full blur-3xl opacity-60" />
+          <div className="absolute top-20 right-0 w-[500px] h-[500px] bg-indigo-100/40 rounded-full blur-3xl opacity-50" />
+          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-teal-50/60 rounded-full blur-3xl opacity-50" />
         </div>
-      </motion.section>
 
-      {/* Trusted by */}
-      <section className="py-12 border-y border-[#DDD6C4] bg-white/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-[#5B6472] text-xs font-mono uppercase tracking-widest mb-8">
-            Preparing for enforcement alongside teams at
-          </p>
-          <div className="flex flex-wrap justify-center items-center gap-x-10 gap-y-4">
-            {['TechCorp', 'DataSafe', 'PrivacyFirst', 'SecureNet', 'CloudGuard'].map((name) => (
-              <div key={name} className="font-display text-[#14213D]/50 font-medium text-lg">{name}</div>
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-100 rounded-full mb-8">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500" />
+                </span>
+                <span className="text-sm font-semibold text-blue-700">Now Compliant with India's DPDP Act 2023</span>
+              </div>
+
+              <h1 className="text-5xl lg:text-6xl xl:text-7xl font-bold text-slate-900 leading-[1.1] tracking-tight mb-6">
+                Privacy Compliance, <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Automated</span>
+              </h1>
+              <p className="text-lg lg:text-xl text-slate-600 leading-relaxed mb-10 max-w-xl">
+                Scan any website against India's Digital Personal Data Protection Act. Get an instant compliance score, AI-powered findings, and a board-ready PDF report — in under 2 minutes.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3 mb-6">
+                <div className="relative flex-1">
+                  <GlobeIcon />
+                  <input type="url" placeholder="https://your-website.com" value={url} onChange={(e) => setUrl(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm" />
+                </div>
+                <Link to="/scan" className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 hover:-translate-y-0.5 whitespace-nowrap">
+                  <ScanIcon /> Scan Now
+                </Link>
+              </div>
+
+              <div className="flex items-center gap-6 text-sm text-slate-500">
+                <div className="flex items-center gap-2"><CheckCircleIcon /> <span>No credit card required</span></div>
+                <div className="flex items-center gap-2"><CheckCircleIcon /> <span>Free first scan</span></div>
+              </div>
+            </div>
+
+            <div className="relative lg:pl-8">
+              <div className="relative bg-white rounded-2xl shadow-2xl shadow-slate-900/10 border border-slate-200/60 overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 border-b border-slate-100">
+                  <div className="flex gap-1.5"><div className="w-3 h-3 rounded-full bg-red-400"/><div className="w-3 h-3 rounded-full bg-amber-400"/><div className="w-3 h-3 rounded-full bg-emerald-400"/></div>
+                  <div className="flex-1 mx-4"><div className="bg-white rounded-md px-3 py-1.5 text-xs text-slate-400 border border-slate-200 text-center">dpdpready.app/scan/results</div></div>
+                </div>
+                <div className="p-6 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Compliance Score</p>
+                      <p className="text-3xl font-bold text-slate-900 mt-1">72<span className="text-lg text-slate-400">/100</span></p>
+                    </div>
+                    <div className="w-16 h-16 rounded-full border-4 border-amber-400 flex items-center justify-center"><span className="text-sm font-bold text-amber-600">72%</span></div>
+                  </div>
+                  <div className="space-y-3">
+                    {[{l:"Consent Mechanism",s:85,c:"bg-emerald-500"},{l:"Privacy Policy",s:60,c:"bg-amber-500"},{l:"Data Security",s:45,c:"bg-red-500"},{l:"User Rights",s:90,c:"bg-emerald-500"}].map((item) => (
+                      <div key={item.l}>
+                        <div className="flex justify-between text-sm mb-1.5"><span className="text-slate-700 font-medium">{item.l}</span><span className="text-slate-500">{item.s}%</span></div>
+                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden"><div className={`h-full ${item.c} rounded-full`} style={{width:`${item.s}%`}} /></div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0 mt-0.5"><LockIcon /></div>
+                    <div><p className="text-sm font-semibold text-red-800">Critical: Missing DPO Contact</p><p className="text-xs text-red-600 mt-1">Section 8(4) violation detected. Your privacy policy must include a Data Protection Officer contact.</p></div>
+                  </div>
+                </div>
+              </div>
+              <div className="absolute -bottom-4 -left-4 bg-white rounded-xl shadow-xl shadow-slate-900/10 border border-slate-100 p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center"><FileTextIcon /></div>
+                <div><p className="text-xs text-slate-500">Report Generated</p><p className="text-sm font-semibold text-slate-900">DPDP_Compliance_Report.pdf</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Trust Bar */}
+      <section className="py-12 border-y border-slate-100 bg-slate-50/50">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <p className="text-center text-sm font-semibold text-slate-400 uppercase tracking-widest mb-8">Trusted by compliance teams at forward-thinking companies</p>
+          <div className="flex flex-wrap justify-center items-center gap-x-12 gap-y-6">
+            {["TechCorp India","StartUp Delhi","LegalEase","DataVault","CloudFirst","SecureNet"].map((name) => (
+              <div key={name} className="text-lg font-bold text-slate-300 hover:text-slate-400 transition-colors select-none">{name}</div>
             ))}
           </div>
         </div>
       </section>
 
       {/* Features */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 relative">
-        <div className="max-w-7xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="font-display text-3xl sm:text-4xl font-medium text-[#14213D] mb-4">
-              Everything the Act requires you to check
-            </h2>
-            <p className="text-[#5B6472] max-w-2xl mx-auto">
-              Our scanner works through every clause that matters, so you don&#39;t have to
-              read the Act to know where you stand.
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <FeatureCard
-              eyebrow="Consent"
-              icon={<FiShield className="w-5 h-5 text-[#14213D]" />}
-              title="Consent management"
-              description="Verify cookie banners, consent mechanisms, and preference storage against DPDP requirements."
-              delay={0}
-            />
-            <FeatureCard
-              eyebrow="Protection"
-              icon={<FiLock className="w-5 h-5 text-[#3F6F5E]" />}
-              title="Data protection"
-              description="Check encryption, data minimization, and secure storage of personal information."
-              delay={0.08}
-            />
-            <FeatureCard
-              eyebrow="Policy"
-              icon={<FiFileText className="w-5 h-5 text-[#B8863A]" />}
-              title="Privacy policy audit"
-              description="AI reads your privacy policy for completeness, clarity, and alignment with the Act."
-              delay={0.16}
-            />
-            <FeatureCard
-              eyebrow="Transfers"
-              icon={<FiGlobe className="w-5 h-5 text-[#B1503A]" />}
-              title="Cross-border data"
-              description="Identify data transfers outside India and check them against DPDP transfer rules."
-              delay={0.24}
-            />
-            <FeatureCard
-              eyebrow="Risk"
-              icon={<FiAlertTriangle className="w-5 h-5 text-[#B1503A]" />}
-              title="Risk assessment"
-              description="Get severity-rated findings with remediation steps ordered by impact, not alphabet."
-              delay={0.32}
-            />
-            <FeatureCard
-              eyebrow="Monitoring"
-              icon={<FiTrendingUp className="w-5 h-5 text-[#3F6F5E]" />}
-              title="Continuous monitoring"
-              description="Schedule recurring scans and get notified the moment your compliance score changes."
-              delay={0.4}
-            />
+      <section id="features" className="py-24 lg:py-32">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-3">Features</p>
+            <h2 className="text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight mb-6">Everything you need to stay compliant</h2>
+            <p className="text-lg text-slate-600 leading-relaxed">From automated scanning to executive-ready reports, we handle the heavy lifting so your legal and engineering teams can focus on what matters.</p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {features.map((f, i) => (
+              <div key={i} className="group bg-white rounded-2xl p-8 border border-slate-100 hover:border-slate-200 transition-all duration-300 hover:shadow-xl hover:shadow-slate-900/5 hover:-translate-y-1">
+                <div className={`w-12 h-12 rounded-xl ${f.color.split(' ')[0]} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
+                  <div className={f.color.split(' ')[1]}>{f.icon}</div>
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-3">{f.title}</h3>
+                <p className="text-slate-600 leading-relaxed">{f.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* How it works */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-[#EFEAE0]/60 border-y border-[#DDD6C4]">
-        <div className="max-w-7xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="font-display text-3xl sm:text-4xl font-medium text-[#14213D] mb-4">
-              How it works
-            </h2>
-            <p className="text-[#5B6472] max-w-2xl mx-auto">
-              Three steps between you and a certified answer.
-            </p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-3 gap-10 max-w-4xl mx-auto">
-            <StepCard
-              number="1"
-              title="Enter a website URL"
-              description="Paste any website URL into the scanner. No signup needed for your first scan."
-              icon={<FiGlobe className="w-4 h-4 text-[#14213D]" />}
-            />
-            <StepCard
-              number="2"
-              title="Automated analysis"
-              description="Our engine crawls the site and checks it against DPDP Act requirements, clause by clause."
-              icon={<FiZap className="w-4 h-4 text-[#14213D]" />}
-            />
-            <StepCard
-              number="3"
-              title="Get your report"
-              description="Receive a compliance score, prioritized findings, and a downloadable PDF action plan."
-              icon={<FiFileText className="w-4 h-4 text-[#14213D]" />}
-            />
+      {/* How It Works */}
+      <section id="how-it-works" className="py-24 lg:py-32 bg-slate-50/50">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-3">How It Works</p>
+            <h2 className="text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight mb-6">Compliance in three simple steps</h2>
+            <p className="text-lg text-slate-600 leading-relaxed">No complex audits. No expensive consultants. Just enter your URL and let our AI do the rest.</p>
+          </div>
+          <div className="grid lg:grid-cols-3 gap-8 lg:gap-12">
+            {[{n:"01",t:"Enter Your Website URL",d:"Paste any website URL into our scanner. No installation, no code changes, no setup required."},{n:"02",t:"AI Analysis in 2 Minutes",d:"Our engine crawls your site, reads your privacy policy, checks consent flows, and validates against the DPDP Act."},{n:"03",t:"Download Your Report",d:"Get a detailed compliance score, categorized findings, and a professionally formatted PDF report."}].map((step, i) => (
+              <div key={i} className="relative">
+                {i < 2 && <div className="hidden lg:block absolute top-12 left-[60%] w-[80%] h-px bg-gradient-to-r from-blue-200 to-transparent" />}
+                <div className="bg-white rounded-2xl p-8 border border-slate-100 shadow-sm hover:shadow-lg hover:shadow-slate-900/5 transition-all duration-300">
+                  <div className="text-5xl font-bold text-slate-100 mb-6">{step.n}</div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-3">{step.t}</h3>
+                  <p className="text-slate-600 leading-relaxed">{step.d}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Live demo */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
-            <h2 className="font-display text-3xl sm:text-4xl font-medium text-[#14213D] mb-4">
-              Try it now
-            </h2>
-            <p className="text-[#5B6472]">
-              Enter any website URL below to start your free compliance scan.
-            </p>
-          </motion.div>
+      {/* Report Preview */}
+      <section className="py-24 lg:py-32">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div className="order-2 lg:order-1">
+              <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-3">Reports</p>
+              <h2 className="text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight mb-6">Reports that impress your board</h2>
+              <p className="text-lg text-slate-600 leading-relaxed mb-8">Every scan generates a beautifully formatted PDF report with executive summaries, detailed findings, risk ratings, and actionable next steps.</p>
+              <div className="space-y-4">
+                {["Executive summary with overall compliance score","Section-by-section DPDP Act breakdown","Risk-rated findings (Critical, Warning, Pass)","Specific remediation steps for each issue","Comparison tracking across multiple scans"].map((item, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center shrink-0 mt-0.5"><CheckCircleIcon /></div>
+                    <p className="text-slate-700">{item}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="order-1 lg:order-2 relative">
+              <div className="bg-white rounded-2xl shadow-2xl shadow-slate-900/10 border border-slate-200/60 overflow-hidden">
+                <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center gap-2"><FileTextIcon /><span className="text-sm font-medium text-slate-600">DPDP_Compliance_Report.pdf</span></div>
+                <div className="p-8 space-y-6">
+                  <div className="text-center pb-6 border-b border-slate-100">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">DPDP Compliance Report</p>
+                    <h3 className="text-2xl font-bold text-slate-900">example.com</h3>
+                    <p className="text-sm text-slate-500 mt-1">Generated on July 12, 2026</p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    {[{v:"12",l:"Passed",c:"bg-emerald-50 text-emerald-600"},{v:"5",l:"Warnings",c:"bg-amber-50 text-amber-600"},{v:"3",l:"Critical",c:"bg-red-50 text-red-600"}].map((stat) => (
+                      <div key={stat.l} className={`text-center p-4 rounded-xl ${stat.c.split(' ')[0]}`}>
+                        <p className={`text-2xl font-bold ${stat.c.split(' ')[1]}`}>{stat.v}</p>
+                        <p className={`text-xs mt-1 ${stat.c.split(' ')[1].replace('text','text-opacity-70')}`}>{stat.l}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="space-y-3">
+                    <div className="p-4 bg-red-50 border border-red-100 rounded-xl">
+                      <div className="flex items-center gap-2 mb-2"><span className="px-2 py-0.5 bg-red-200 text-red-800 text-xs font-bold rounded">CRITICAL</span><span className="text-sm font-semibold text-red-800">Missing Data Principal Rights Page</span></div>
+                      <p className="text-xs text-red-600">Section 12 & 13 — Users must be able to access, correct, and delete their data.</p>
+                    </div>
+                    <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl">
+                      <div className="flex items-center gap-2 mb-2"><span className="px-2 py-0.5 bg-amber-200 text-amber-800 text-xs font-bold rounded">WARNING</span><span className="text-sm font-semibold text-amber-800">Cookie Consent Not Granular</span></div>
+                      <p className="text-xs text-amber-600">Section 6 — Consent must be free, specific, informed, unconditional, and unambiguous.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="bg-white border border-[#DDD6C4] rounded-xl p-8 shadow-[0_20px_50px_-24px_rgba(20,33,61,0.15)]"
-          >
-            <ScanForm />
-          </motion.div>
+      {/* Pricing */}
+      <section id="pricing" className="py-24 lg:py-32 bg-slate-50/50">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-3">Pricing</p>
+            <h2 className="text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight mb-6">Simple, transparent pricing</h2>
+            <p className="text-lg text-slate-600 leading-relaxed">Start free. Upgrade when you need more power. No hidden fees, no surprises.</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {[{name:"Starter",price:"Free",period:"",desc:"Perfect for small websites and initial assessments.",features:["1 website scan per month","Basic compliance score","Summary findings","Email support"],cta:"Start Free",popular:false},{name:"Professional",price:"₹2,999",period:"/month",desc:"For growing businesses that need regular compliance checks.",features:["10 website scans per month","Detailed AI-powered findings","PDF report generation","Priority email support","Compliance history tracking"],cta:"Start Pro Trial",popular:true},{name:"Enterprise",price:"Custom",period:"",desc:"For large organizations with complex compliance needs.",features:["Unlimited scans","API access","White-label reports","Dedicated account manager","Custom compliance rules","SSO & team management"],cta:"Contact Sales",popular:false}].map((plan, i) => (
+              <div key={i} className={`relative rounded-2xl p-8 ${plan.popular ? "bg-slate-900 text-white shadow-2xl shadow-slate-900/20 scale-105 z-10" : "bg-white border border-slate-100 text-slate-900"}`}>
+                {plan.popular && <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-blue-600 text-white text-xs font-bold rounded-full">Most Popular</div>}
+                <div className="mb-6"><h3 className={`text-lg font-semibold mb-2 ${plan.popular ? "text-white" : "text-slate-900"}`}>{plan.name}</h3><p className={`text-sm ${plan.popular ? "text-slate-300" : "text-slate-500"}`}>{plan.desc}</p></div>
+                <div className="mb-6"><span className={`text-4xl font-bold ${plan.popular ? "text-white" : "text-slate-900"}`}>{plan.price}</span><span className={`text-sm ${plan.popular ? "text-slate-400" : "text-slate-500"}`}>{plan.period}</span></div>
+                <ul className="space-y-3 mb-8">
+                  {plan.features.map((f, fi) => (
+                    <li key={fi} className="flex items-start gap-3">
+                      <svg className={`w-5 h-5 shrink-0 mt-0.5 ${plan.popular ? "text-blue-400" : "text-blue-600"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                      <span className={`text-sm ${plan.popular ? "text-slate-300" : "text-slate-600"}`}>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <button className={`w-full py-3 rounded-xl font-semibold text-sm transition-all hover:-translate-y-0.5 ${plan.popular ? "bg-white text-slate-900 hover:bg-slate-100 shadow-lg" : "bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/20"}`}>{plan.cta}</button>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Testimonials */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-[#EFEAE0]/60 border-y border-[#DDD6C4]">
-        <div className="max-w-7xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="font-display text-3xl sm:text-4xl font-medium text-[#14213D] mb-4">
-              Read by compliance teams
-            </h2>
-            <p className="text-[#5B6472]">
-              What DPOs, CTOs, and counsel say after their first scan.
-            </p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            <TestimonialCard
-              name="Priya Sharma"
-              role="DPO"
-              company="TechStart India"
-              quote="DPDPready cut our compliance audit time from weeks to minutes. The findings are precise, not generic."
-              rating={5}
-            />
-            <TestimonialCard
-              name="Rahul Mehta"
-              role="CTO"
-              company="DataVault"
-              quote="We audited fifty client sites with it. The PDF reports alone saved us two hundred hours of manual work."
-              rating={5}
-            />
-            <TestimonialCard
-              name="Ananya Patel"
-              role="Legal Counsel"
-              company="SecureNet"
-              quote="Finally a tool that reads the DPDP Act the way a lawyer would. The recommendations hold up."
-              rating={4}
-            />
+      <section className="py-24 lg:py-32">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-3">Testimonials</p>
+            <h2 className="text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight mb-6">Loved by compliance teams</h2>
           </div>
-        </div>
-      </section>
-
-      {/* CTA — styled like a certificate: navy ground, gold hairline, corner ticks */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.97 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            className="relative bg-[#14213D] rounded-2xl p-8 sm:p-14 text-center overflow-hidden"
-          >
-            <div className="absolute inset-3 border border-[#B8863A]/40 rounded-xl pointer-events-none" />
-            {[['top-4','left-4','border-t','border-l'],['top-4','right-4','border-t','border-r'],
-              ['bottom-4','left-4','border-b','border-l'],['bottom-4','right-4','border-b','border-r']].map(([t,r,b1,b2], i) => (
-              <div key={i} className={`absolute ${t} ${r} w-6 h-6 ${b1} ${b2} border-[#B8863A]`} />
-            ))}
-
-            <div className="relative flex justify-center mb-6">
-              <ComplianceSeal size={84} ringSpeed={28} />
-            </div>
-
-            <h2 className="font-display text-3xl sm:text-4xl font-medium text-white mb-4">
-              Ready to know where you stand?
-            </h2>
-            <p className="text-[#F7F5F0]/70 text-lg mb-8 max-w-xl mx-auto">
-              Join hundreds of companies using DPDPready to stay ahead of India&#39;s
-              data protection law.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link
-                to="/scan"
-                className="flex items-center gap-2 px-8 py-4 bg-[#B8863A] hover:bg-[#96692B] text-white font-medium rounded-lg transition-colors"
-              >
-                <FiZap className="w-5 h-5" />
-                Start free scan
-              </Link>
-              <Link
-                to="/pricing"
-                className="flex items-center gap-2 px-8 py-4 bg-transparent text-white font-medium rounded-lg hover:bg-white/5 transition-colors border border-white/20"
-              >
-                View pricing
-              </Link>
-            </div>
-            <p className="text-[#F7F5F0]/50 text-sm mt-6 font-mono">
-              No credit card required &#8226; free tier includes 10 scans/month
-            </p>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-[#DDD6C4] py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <div className="flex items-center gap-2 text-[#14213D] font-display font-medium text-lg mb-4">
-                <FiShield className="text-[#B8863A]" />
-                DPDPready
+          <div className="grid md:grid-cols-3 gap-8">
+            {[{quote:"DPDPready saved us weeks of legal review. We scanned our entire platform and had a compliance report ready for our board meeting the same day.",author:"Priya Sharma",role:"General Counsel, FinTech Startup"},{quote:"The actionable recommendations are what set this apart. Instead of vague advice, we got exact clauses to add and remove.",author:"Rahul Mehta",role:"CTO, E-commerce Platform"},{quote:"We used DPDPready to audit 12 client websites in one afternoon. The white-label reports are professional enough to put our agency name on them.",author:"Ananya Reddy",role:"Founder, Digital Agency"}].map((t, i) => (
+              <div key={i} className="bg-white rounded-2xl p-8 border border-slate-100 shadow-sm hover:shadow-lg hover:shadow-slate-900/5 transition-all duration-300">
+                <div className="flex gap-1 mb-4">{[1,2,3,4,5].map((s) => <StarIcon key={s} />)}</div>
+                <p className="text-slate-700 leading-relaxed mb-6 italic">"{t.quote}"</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-sm">{t.author.split(" ").map((n) => n[0]).join("")}</div>
+                  <div><p className="text-sm font-semibold text-slate-900">{t.author}</p><p className="text-xs text-slate-500">{t.role}</p></div>
+                </div>
               </div>
-              <p className="text-[#5B6472] text-sm">
-                AI-powered privacy compliance for India&#39;s DPDP Act, 2023.
-              </p>
-            </div>
-            <div>
-              <h4 className="text-[#14213D] font-medium mb-3">Product</h4>
-              <ul className="space-y-2 text-sm">
-                <li><Link to="/scan" className="text-[#5B6472] hover:text-[#14213D] transition-colors">Scanner</Link></li>
-                <li><Link to="/pricing" className="text-[#5B6472] hover:text-[#14213D] transition-colors">Pricing</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-[#14213D] font-medium mb-3">Resources</h4>
-              <ul className="space-y-2 text-sm">
-                <li><Link to="/privacy" className="text-[#5B6472] hover:text-[#14213D] transition-colors">Privacy Policy</Link></li>
-                <li><Link to="/terms" className="text-[#5B6472] hover:text-[#14213D] transition-colors">Terms of Service</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-[#14213D] font-medium mb-3">Legal</h4>
-              <p className="text-[#5B6472] text-sm">
-                DPDPready provides automated guidance. Consult a legal professional for compliance matters.
-              </p>
-            </div>
-          </div>
-          <div className="border-t border-[#DDD6C4] pt-8 text-center text-[#5B6472] text-sm">
-            &#169; {new Date().getFullYear()} DPDPready. All rights reserved.
+            ))}
           </div>
         </div>
-      </footer>
+      </section>
+
+      {/* FAQ */}
+      <section id="faq" className="py-24 lg:py-32 bg-slate-50/50">
+        <div className="max-w-3xl mx-auto px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-3">FAQ</p>
+            <h2 className="text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight mb-6">Frequently asked questions</h2>
+          </div>
+          <div className="space-y-4">
+            {faqs.map((faq, i) => (
+              <div key={i} className={`bg-white rounded-xl border transition-all duration-300 ${openFaq === i ? "border-blue-200 shadow-md shadow-blue-900/5" : "border-slate-100"}`}>
+                <button className="w-full flex items-center justify-between p-6 text-left" onClick={() => setOpenFaq(openFaq === i ? -1 : i)}>
+                  <span className="font-semibold text-slate-900 pr-4">{faq.q}</span>
+                  <ChevronDownIcon className={`shrink-0 transition-transform duration-300 ${openFaq === i ? "rotate-180" : ""}`} />
+                </button>
+                {openFaq === i && <div className="px-6 pb-6"><p className="text-slate-600 leading-relaxed">{faq.a}</p></div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-24 lg:py-32">
+        <div className="max-w-5xl mx-auto px-6 lg:px-8">
+          <div className="relative bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-12 lg:p-16 text-center overflow-hidden">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl" />
+            <div className="relative z-10">
+              <h2 className="text-3xl lg:text-5xl font-bold text-white tracking-tight mb-6">Ready to get compliant?</h2>
+              <p className="text-lg text-slate-300 max-w-2xl mx-auto mb-10">Join hundreds of Indian businesses using DPDPready to stay ahead of regulations. Your first scan is completely free.</p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <Link to="/scan" className="inline-flex items-center gap-2 px-8 py-4 bg-white text-slate-900 font-semibold rounded-xl hover:bg-slate-100 transition-all shadow-xl hover:-translate-y-0.5">
+                  <ScanIcon /> Start Free Scan
+                </Link>
+                <Link to="/demo" className="inline-flex items-center gap-2 px-8 py-4 bg-transparent border border-slate-600 text-white font-semibold rounded-xl hover:bg-white/5 transition-all">
+                  View Demo Report <ArrowRightIcon />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
