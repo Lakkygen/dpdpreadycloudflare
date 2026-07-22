@@ -43,6 +43,55 @@ app.use(express.urlencoded({ extended: true }));
 // Health check (no auth required)
 app.use('/api', healthRoutes);
 
+// DIAGNOSTIC: Test database connection
+app.get('/api/test-db', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT NOW() as time, COUNT(*) as user_count FROM users');
+    res.json({ 
+      ok: true, 
+      db_time: rows[0].time,
+      users: parseInt(rows[0].user_count),
+      message: 'Database connected'
+    });
+  } catch (err) {
+    res.status(500).json({ 
+      ok: false, 
+      error: err.message,
+      hint: 'Did you run the SQL schema?'
+    });
+  }
+});
+
+// DIAGNOSTIC: Test auth endpoint (no login required)
+app.post('/api/test-auth', async (req, res) => {
+  try {
+    console.log('TEST-AUTH hit:', req.body);
+    const { email, password } = req.body || {};
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' });
+    }
+    
+    // Try to find user
+    const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    console.log('TEST-AUTH user found:', rows.length > 0);
+    
+    if (rows.length === 0) {
+      return res.status(401).json({ error: 'User not found. Please register first.' });
+    }
+    
+    res.json({ 
+      ok: true, 
+      user_exists: true,
+      email: rows[0].email,
+      plan: rows[0].plan
+    });
+  } catch (err) {
+    console.error('TEST-AUTH error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/scans', scanRoutes);
