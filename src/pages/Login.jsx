@@ -10,12 +10,42 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    localStorage.setItem("token", "demo-token");
-    navigate("/dashboard");
+    setLoading(true);
+    
+    try {
+      console.log("LOGIN: Sending request to /api/auth/login");
+      
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      
+      console.log("LOGIN: Response status =", res.status);
+      
+      const data = await res.json();
+      console.log("LOGIN: Response data =", data);
+      
+      if (!res.ok) {
+        alert("Login failed: " + (data.error || "Unknown error"));
+        setLoading(false);
+        return;
+      }
+      
+      localStorage.setItem("token", data.token);
+      console.log("LOGIN: Token saved, redirecting to dashboard");
+      window.location.href = "/dashboard";
+      
+    } catch (err) {
+      console.error("LOGIN: Network error =", err);
+      alert("Network error: " + err.message);
+      setLoading(false);
+    }
   };
 
   return (
@@ -58,7 +88,9 @@ export default function Login() {
               </label>
               <Link to="/forgot-password" className="text-sm font-medium text-blue-600 hover:text-blue-700">Forgot password?</Link>
             </div>
-            <button type="submit" className="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 hover:-translate-y-0.5">Sign In</button>
+            <button type="submit" disabled={loading} className="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 hover:-translate-y-0.5 disabled:opacity-50">
+              {loading ? "Signing in..." : "Sign In"}
+            </button>
           </form>
 
           <div className="mt-6 text-center">
