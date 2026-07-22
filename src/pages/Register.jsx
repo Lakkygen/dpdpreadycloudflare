@@ -1,11 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { createClient } from "@supabase/supabase-js";
-
-// Initialize Supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { supabase, isSupabaseReady } from "../lib/supabase.js";
 
 const MailIcon = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>;
 const LockIcon = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>;
@@ -21,18 +16,27 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  if (!isSupabaseReady()) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl border border-red-200 shadow-xl p-8 max-w-md text-center">
+          <h1 className="text-xl font-bold text-red-600 mb-2">Configuration Error</h1>
+          <p className="text-slate-600 mb-4">Supabase is not configured. Please set <code className="bg-slate-100 px-1 rounded">VITE_SUPABASE_URL</code> and <code className="bg-slate-100 px-1 rounded">VITE_SUPABASE_ANON_KEY</code> environment variables.</p>
+          <Link to="/" className="text-blue-600 font-medium hover:underline">Go back home</Link>
+        </div>
+      </div>
+    );
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // 1. Sign up with Supabase Auth directly
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: { full_name: name },
-        },
+        options: { data: { full_name: name } },
       });
 
       if (error) {
@@ -41,11 +45,8 @@ export default function Register() {
         return;
       }
 
-      // 2. Save token and sync user to backend DB
       if (data.session) {
         localStorage.setItem("token", data.session.access_token);
-        
-        // Sync with backend
         await fetch("/api/auth/sync", {
           method: "POST",
           headers: {
@@ -55,9 +56,8 @@ export default function Register() {
         });
       }
 
-      alert("Account created successfully! Please check your email to confirm.");
+      alert("Account created! Check your email to confirm.");
       navigate("/login");
-
     } catch (err) {
       console.error("REGISTER error:", err);
       alert("Network error: " + err.message);
