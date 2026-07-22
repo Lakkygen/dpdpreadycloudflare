@@ -18,32 +18,32 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       console.log("REGISTER: Sending request to /api/auth/register");
-      
+
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, full_name: name }),
       });
-      
+
       console.log("REGISTER: Response status =", res.status);
-      
+
       const data = await res.json();
       console.log("REGISTER: Response data =", data);
-      
+
       if (!res.ok) {
         alert("Registration failed: " + (data.error || "Unknown error"));
         setLoading(false);
         return;
       }
-      
+
       localStorage.setItem("token", data.token);
       console.log("REGISTER: Success, token saved");
       alert("Account created successfully! Please log in.");
       navigate("/login");
-      
+
     } catch (err) {
       console.error("REGISTER: Network error =", err);
       alert("Network error: " + err.message);
@@ -75,7 +75,8 @@ export default function Register() {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Email address <div className="relative">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Email address</label>
+              <div className="relative">
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><MailIcon /></div>
                 <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
               </div>
@@ -83,5 +84,27 @@ export default function Register() {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
               <div className="relative">
-                <div className="absolute left-3 top-1/2 -translate
-                
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><LockIcon /></div>
+                <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="w-full pl-10 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                </button>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <input type="checkbox" required className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 mt-0.5" />
+              <span className="text-sm text-slate-600">I agree to the <Link to="/terms" className="text-blue-600 hover:text-blue-700 font-medium">Terms of Service</Link> and <Link to="/privacy" className="text-blue-600 hover:text-blue-700 font-medium">Privacy Policy</Link></span>
+            </div>
+            <button type="submit" disabled={loading} className="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed">
+              {loading ? "Creating account..." : "Create Free Account"}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-slate-500">Already have an account? <Link to="/login" className="font-semibold text-blue-600 hover:text-blue-700">Sign in</Link></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
