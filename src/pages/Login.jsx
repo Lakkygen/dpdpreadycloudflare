@@ -1,5 +1,11 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { createClient } from "@supabase/supabase-js";
+
+// Initialize Supabase client
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const MailIcon = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>;
 const LockIcon = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>;
@@ -16,31 +22,37 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
-      console.log("LOGIN: Sending request to /api/auth/login");
-      
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+      // Sign in with Supabase Auth
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
-      
-      console.log("LOGIN: Response status =", res.status);
-      
-      const data = await res.json();
-      console.log("LOGIN: Response data =", data);
-      
-      if (!res.ok) {
-        alert("Login failed: " + (data.error || "Unknown error"));
+
+      if (error) {
+        alert("Login failed: " + error.message);
         setLoading(false);
         return;
       }
-      
-      localStorage.setItem("token", data.token);
-      console.log("LOGIN: Token saved, redirecting to dashboard");
-      window.location.href = "/dashboard";
-      
+
+      // Save token
+      if (data.session) {
+        localStorage.setItem("token", data.session.access_token);
+
+        // Sync user with backend DB
+        await fetch("/api/auth/sync", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${data.session.access_token}`,
+          },
+        });
+
+        console.log("LOGIN: Success, redirecting to dashboard");
+        window.location.href = "/dashboard";
+      }
+
     } catch (err) {
       console.error("LOGIN: Network error =", err);
       alert("Network error: " + err.message);
