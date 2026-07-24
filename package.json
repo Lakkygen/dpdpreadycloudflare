@@ -36,6 +36,7 @@
     "lucide-react": "0.414.0",
     "react-lazy-load-image-component": "1.6.2",
     "jspdf": "2.5.1",
+    "jspdf-autotable": "3.8.2",
     "html2canvas": "1.4.1",
     "recharts": "2.12.7",
     "date-fns": "3.6.0",
