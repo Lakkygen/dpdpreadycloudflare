@@ -21,6 +21,7 @@
     "react-router-dom": "6.25.1",
     "framer-motion": "11.3.19",
     "react-hot-toast": "2.4.1",
+    "react-toastify": "10.0.5",
     "@supabase/supabase-js": "2.44.4",
     "express": "4.19.2",
     "express-rate-limit": "7.4.0",
