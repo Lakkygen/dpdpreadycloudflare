@@ -22,6 +22,7 @@
     "framer-motion": "11.3.19",
     "react-hot-toast": "2.4.1",
     "react-toastify": "10.0.5",
+    "react-icons": "5.2.1",
     "@supabase/supabase-js": "2.44.4",
     "express": "4.19.2",
     "express-rate-limit": "7.4.0",
@@ -30,7 +31,16 @@
     "razorpay": "2.9.4",
     "pg": "8.12.0",
     "dotenv": "16.4.5",
-    "compression": "1.7.4"
+    "compression": "1.7.4",
+    "lucide-react": "0.414.0",
+    "react-lazy-load-image-component": "1.6.2",
+    "jspdf": "2.5.1",
+    "html2canvas": "1.4.1",
+    "recharts": "2.12.7",
+    "date-fns": "3.6.0",
+    "zustand": "4.5.4",
+    "@tanstack/react-query": "5.51.11",
+    "axios": "1.7.2"
   },
   "devDependencies": {
     "@types/react": "18.3.3",
