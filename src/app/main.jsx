@@ -2,8 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
-import AppRoutes from './routes';
-import '../styles/globals.css'; // Design tokens & utilities
+import AppRoutes from './App.jsx';  // <-- Change from './routes' to './App'
+import '../styles/globals.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
