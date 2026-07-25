@@ -1,4 +1,4 @@
-import React, { lazy } from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
 import DashboardLayout from '../layouts/DashboardLayout';
@@ -29,28 +29,28 @@ export default function AppRoutes() {
     <Routes>
       {/* Public pages */}
       <Route element={<MainLayout />}>
-        <Route index element={<React.Suspense fallback={<PageLoader />}><Home /></React.Suspense>} />
-        <Route path="scan" element={<React.Suspense fallback={<PageLoader />}><Scan /></React.Suspense>} />
-        <Route path="pricing" element={<React.Suspense fallback={<PageLoader />}><Pricing /></React.Suspense>} />
-        <Route path="privacy" element={<React.Suspense fallback={<PageLoader />}><Privacy /></React.Suspense>} />
-        <Route path="terms" element={<React.Suspense fallback={<PageLoader />}><Terms /></React.Suspense>} />
+        <Route index element={<Suspense fallback={<PageLoader />}><Home /></Suspense>} />
+        <Route path="scan" element={<Suspense fallback={<PageLoader />}><Scan /></Suspense>} />
+        <Route path="pricing" element={<Suspense fallback={<PageLoader />}><Pricing /></Suspense>} />
+        <Route path="privacy" element={<Suspense fallback={<PageLoader />}><Privacy /></Suspense>} />
+        <Route path="terms" element={<Suspense fallback={<PageLoader />}><Terms /></Suspense>} />
       </Route>
 
       {/* Auth pages */}
       <Route element={<AuthLayout />}>
-        <Route path="login" element={<React.Suspense fallback={<PageLoader />}><Login /></React.Suspense>} />
-        <Route path="register" element={<React.Suspense fallback={<PageLoader />}><Register /></React.Suspense>} />
+        <Route path="login" element={<Suspense fallback={<PageLoader />}><Login /></Suspense>} />
+        <Route path="register" element={<Suspense fallback={<PageLoader />}><Register /></Suspense>} />
       </Route>
 
       {/* Protected pages */}
       <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-        <Route path="dashboard" element={<React.Suspense fallback={<PageLoader />}><Dashboard /></React.Suspense>} />
-        <Route path="report/:id" element={<React.Suspense fallback={<PageLoader />}><Report /></React.Suspense>} />
-        <Route path="account" element={<React.Suspense fallback={<PageLoader />}><Account /></React.Suspense>} />
+        <Route path="dashboard" element={<Suspense fallback={<PageLoader />}><Dashboard /></Suspense>} />
+        <Route path="report/:id" element={<Suspense fallback={<PageLoader />}><Report /></Suspense>} />
+        <Route path="account" element={<Suspense fallback={<PageLoader />}><Account /></Suspense>} />
       </Route>
 
       {/* 404 */}
-      <Route path="*" element={<React.Suspense fallback={<PageLoader />}><NotFound /></React.Suspense>} />
+      <Route path="*" element={<Suspense fallback={<PageLoader />}><NotFound /></Suspense>} />
     </Routes>
   );
 }
