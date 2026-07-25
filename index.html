@@ -78,4 +78,56 @@
     <div id="root"></div>
     <script type="module" src="/src/app/main.jsx"></script>
   </body>
+    <!-- ERROR DIAGNOSTIC OVERLAY -->
+  <div id="error-overlay" style="
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: #0f172a;
+    color: #f8fafc;
+    z-index: 99999;
+    padding: 20px;
+    font-family: monospace;
+    font-size: 14px;
+    overflow-y: auto;
+    line-height: 1.5;
+  ">
+    <div style="color: #ef4444; font-size: 18px; font-weight: bold; margin-bottom: 16px;">
+      ⚠️ APP CRASHED
+    </div>
+    <div id="error-message" style="color: #fca5a5; margin-bottom: 12px; white-space: pre-wrap;"></div>
+    <div id="error-stack" style="color: #94a3b8; font-size: 12px; white-space: pre-wrap;"></div>
+    <div style="margin-top: 20px; color: #64748b; font-size: 12px;">
+      If you see this, screenshot it and send it for debugging.
+    </div>
+  </div>
+
+  <script>
+    window.addEventListener('error', function(e) {
+      var overlay = document.getElementById('error-overlay');
+      var msg = document.getElementById('error-message');
+      var stack = document.getElementById('error-stack');
+      if (overlay && msg) {
+        overlay.style.display = 'block';
+        msg.textContent = e.message + '\\n\\nFile: ' + (e.filename || 'unknown') + '\\nLine: ' + (e.lineno || '?') + ':' + (e.colno || '?');
+        stack.textContent = e.error && e.error.stack ? e.error.stack : 'No stack trace';
+      }
+      console.error('GLOBAL ERROR:', e.message, e.error);
+    });
+
+    window.addEventListener('unhandledrejection', function(e) {
+      var overlay = document.getElementById('error-overlay');
+      var msg = document.getElementById('error-message');
+      var stack = document.getElementById('error-stack');
+      if (overlay && msg) {
+        overlay.style.display = 'block';
+        msg.textContent = 'Unhandled Promise Rejection:\\n' + (e.reason && e.reason.message ? e.reason.message : String(e.reason));
+        stack.textContent = e.reason && e.reason.stack ? e.reason.stack : 'No stack trace';
+      }
+      console.error('UNHANDLED REJECTION:', e.reason);
+    });
+  </script>
+  <!-- END ERROR DIAGNOSTIC -->
+
+  <div id="root"></div>
 </html>
