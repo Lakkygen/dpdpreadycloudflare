@@ -1,43 +1,67 @@
-async function processScan(scanId, url) {
-  try {
-    // Crawling
-    await pool.query(`UPDATE scans SET status = 'crawling' WHERE id = $1`, [scanId]);
-    const crawledData = await crawlWebsite(url);
+import express from 'express';
+import { requireAuth, checkScanLimit } from '../middleware/auth.js';
+import { performScan } from '../services/scanner.js';
+import pool from '../database/db.js';
 
-    // Heuristic checks
-    const heuristicResults = runChecks(crawledData);
+const router = express.Router();
 
-    // Analysing (with AI)
-    await pool.query(`UPDATE scans SET status = 'analysing' WHERE id = $1`, [scanId]);
-    const aiResult = await analyseWithAI(crawledData, heuristicResults);
+router.use(requireAuth);
+router.use(checkScanLimit);
 
-    // FIX: issue.passed (boolean) → status string
-    const finalChecks = aiResult.issues.map(issue => ({
-      checkId: issue.checkId,
-      title: issue.title,
-      status: issue.passed ? "passed" : "failed",
-      severity: issue.severity,
-      description: issue.description || '',
-      suggestedFix: issue.suggestedFix || '',
-    }));
-
-    const overallScore = aiResult.overallScore;
-    const confidence = aiResult.confidence;
-
-    await pool.query(
-      `UPDATE scans
-       SET status = 'completed',
-           overall_score = $1,
-           ai_confidence = $2,
-           results_json = $3
-       WHERE id = $4`,
-      [overallScore, confidence, JSON.stringify({ checks: finalChecks, aiAnalysis: aiResult }), scanId]
-    );
-  } catch (err) {
-    console.error(`Scan ${scanId} failed:`, err.message);
-    await pool.query(
-      `UPDATE scans SET status = 'failed', results_json = $1 WHERE id = $2`,
-      [JSON.stringify({ error: err.message }), scanId]
-    );
+router.post('/', async (req, res, next) => {
+  const { url } = req.body;
+  if (!url) {
+    return res.status(400).json({ error: 'URL is required' });
   }
-}
+
+  try {
+    new URL(url);
+  } catch {
+    return res.status(400).json({ error: 'Invalid URL format' });
+  }
+
+  try {
+    const result = await performScan(url);
+    const dbResult = await pool.query(
+      `INSERT INTO scans (user_id, url, overall_score, status, results_json, created_at)
+       VALUES ($1, $2, $3, 'completed', $4, NOW())
+       RETURNING *`,
+      [req.user.id, url, result.overallScore, JSON.stringify(result)]
+    );
+    res.status(201).json(dbResult.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/', async (req, res, next) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const offset = parseInt(req.query.offset) || 0;
+
+    const results = await pool.query(
+      `SELECT * FROM scans WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+      [req.user.id, limit, offset]
+    );
+    res.json(results.rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/:id', async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM scans WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Scan not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+export default router;
