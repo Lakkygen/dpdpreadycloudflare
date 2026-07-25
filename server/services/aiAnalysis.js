@@ -2,7 +2,38 @@ import { CHECKS } from './scanner.js';
 import { clampNumber } from '../utils/validators.js';
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'openai/gpt-4o-mini';
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL;
+
+// Free model fallback chain — tries each until one works
+const FREE_MODELS = [
+  OPENROUTER_MODEL,
+  'google/gemini-2.0-flash-exp:free',
+  'deepseek/deepseek-chat:free',
+].filter(Boolean);
+
+const aiMetrics = {
+  total: 0,
+  success: 0,
+  fallback: 0,
+  lastFailure: null,
+};
+
+function logMetrics(status, model = null, error = null) {
+  aiMetrics.total++;
+  if (status === 'success') aiMetrics.success++;
+  else {
+    aiMetrics.fallback++;
+    aiMetrics.lastFailure = {
+      time: new Date().toISOString(),
+      model,
+      error: error?.message || 'unknown',
+    };
+  }
+  console.log(
+    `[AI Metrics] ${status.toUpperCase()}${model ? ` (${model})` : ''} | ` +
+    `Success: ${aiMetrics.success}/${aiMetrics.total}`
+  );
+}
 
 function calculateSimpleScore(heuristicResults = []) {
   if (!Array.isArray(heuristicResults) || heuristicResults.length === 0) return 0;
@@ -14,8 +45,8 @@ function calculateSimpleScore(heuristicResults = []) {
         typeof result.score === 'number'
           ? clampNumber(result.score, 0, 100)
           : result.passed === false
-            ? 0
-            : 100;
+          ? 0
+          : 100;
 
       acc.totalWeight += weight > 0 ? weight : 1;
       acc.totalPoints += (weight > 0 ? weight : 1) * score;
@@ -74,17 +105,25 @@ function normalizeAiIssue(issue, heuristicResults) {
       typeof issue?.passed === 'boolean'
         ? issue.passed
         : typeof fallback?.passed === 'boolean'
-          ? fallback.passed
-          : undefined,
+        ? fallback.passed
+        : undefined,
     severity: issue?.severity || fallback?.severity || 'medium',
     evidence: issue?.evidence || fallback?.evidence || '',
     score:
       typeof issue?.score === 'number'
         ? clampNumber(issue.score, 0, 100)
         : typeof fallback?.score === 'number'
-          ? clampNumber(fallback.score, 0, 100)
-          : undefined
+        ? clampNumber(fallback.score, 0, 100)
+        : undefined
   };
+}
+
+function sanitizeForPrompt(text) {
+  if (!text) return '';
+  return text
+    .replace(/[<>]/g, '')
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+    .slice(0, 8000);
 }
 
 function buildPrompt(crawledData, heuristicResults) {
@@ -92,7 +131,7 @@ function buildPrompt(crawledData, heuristicResults) {
     url: crawledData?.url,
     finalUrl: crawledData?.finalUrl,
     title: crawledData?.title,
-    bodyText: (crawledData?.bodyText || '').slice(0, 12000),
+    bodyText: sanitizeForPrompt(crawledData?.bodyText).slice(0, 12000),
     metaTags: crawledData?.metaTags || {},
     links: (crawledData?.links || []).slice(0, 30),
     heuristicResults: heuristicResults.map((item) => ({
@@ -107,13 +146,87 @@ function buildPrompt(crawledData, heuristicResults) {
 
   return [
     'You are a privacy compliance analyst reviewing a website for India DPDP readiness.',
-    'Return only valid JSON with this shape:',
+    'Return only valid JSON with this exact shape:',
     '{ "issues": [{ "checkId": "string", "title": "string", "description": "string", "suggestedFix": "string", "passed": true, "severity": "low|medium|high|critical", "evidence": "string", "score": 0 }], "overallScore": 0, "confidence": 0, "summary": "string" }',
     'The score must be 0-100 and confidence must be 0-1.',
-    'Use concise, practical language.',
+    'Use concise, practical language. No markdown, no explanation outside the JSON.',
     '',
     JSON.stringify(concise, null, 2)
   ].join('\n');
+}
+
+async function fetchWithRetry(url, options, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
+
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timeout);
+      return response;
+    } catch (err) {
+      clearTimeout(timeout);
+      if (i === retries - 1) throw err;
+      await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, i)));
+    }
+  }
+}
+
+async function callModel(crawledData, heuristicResults, model) {
+  const response = await fetchWithRetry('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': process.env.CLIENT_URL || 'http://localhost:5173',
+      'X-Title': 'DPDPready'
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a strict privacy and compliance reviewer. Focus on visible website evidence only. Return ONLY valid JSON.'
+        },
+        {
+          role: 'user',
+          content: buildPrompt(crawledData, heuristicResults)
+        }
+      ],
+      temperature: 0.2
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenRouter request failed (${response.status})`);
+  }
+
+  const payload = await response.json();
+  const content = payload?.choices?.[0]?.message?.content || '';
+  const parsed = safeJsonParse(content);
+
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('AI response was not valid JSON.');
+  }
+
+  if (!Array.isArray(parsed.issues) || typeof parsed.overallScore !== 'number') {
+    throw new Error('AI response missing required fields.');
+  }
+
+  const issues = parsed.issues.map((issue) => normalizeAiIssue(issue, heuristicResults));
+  const scoreFromAi = clampNumber(parsed.overallScore, 0, 100);
+  const confidence = typeof parsed.confidence === 'number' ? clampNumber(parsed.confidence, 0, 1) : 0.7;
+
+  return {
+    issues,
+    overallScore: scoreFromAi,
+    confidence,
+    summary:
+      typeof parsed.summary === 'string' && parsed.summary.trim()
+        ? parsed.summary.trim()
+        : 'AI analysis completed successfully.'
+  };
 }
 
 export async function analyseWithAI(crawledData, heuristicResults = []) {
@@ -137,84 +250,40 @@ export async function analyseWithAI(crawledData, heuristicResults = []) {
     };
   }
 
-  try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.CLIENT_URL || 'http://localhost:5173',
-        'X-Title': 'DPDPready'
-      },
-      body: JSON.stringify({
-        model: OPENROUTER_MODEL,
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are a strict privacy and compliance reviewer. Focus on visible website evidence only.'
-          },
-          {
-            role: 'user',
-            content: buildPrompt(crawledData, heuristicResults)
-          }
-        ],
-        temperature: 0.2
-      })
-    });
+  let lastError = null;
 
-    if (!response.ok) {
-      throw new Error(`OpenRouter request failed (${response.status})`);
+  for (const model of FREE_MODELS) {
+    try {
+      const result = await callModel(crawledData, heuristicResults, model);
+      logMetrics('success', model);
+      return result;
+    } catch (err) {
+      lastError = err;
+      console.warn(`[AI] Model ${model} failed:`, err.message);
+      continue;
     }
-
-    const payload = await response.json();
-    const content = payload?.choices?.[0]?.message?.content || '';
-    const parsed = safeJsonParse(content);
-
-    if (!parsed || typeof parsed !== 'object') {
-      throw new Error('AI response was not valid JSON.');
-    }
-
-    const issues = Array.isArray(parsed.issues)
-      ? parsed.issues.map((issue) => normalizeAiIssue(issue, heuristicResults))
-      : heuristicResults.map((issue) => normalizeAiIssue(issue, heuristicResults));
-
-    const scoreFromAi =
-      typeof parsed.overallScore === 'number'
-        ? clampNumber(parsed.overallScore, 0, 100)
-        : heuristicScore;
-
-    const confidence =
-      typeof parsed.confidence === 'number'
-        ? clampNumber(parsed.confidence, 0, 1)
-        : 0.7;
-
-    return {
-      issues,
-      overallScore: scoreFromAi,
-      confidence,
-      summary:
-        typeof parsed.summary === 'string' && parsed.summary.trim()
-          ? parsed.summary.trim()
-          : 'AI analysis completed successfully.'
-    };
-  } catch (error) {
-    console.error('AI analysis failed:', error);
-
-    return {
-      issues: heuristicResults.map((result) =>
-        normalizeAiIssue(
-          {
-            ...result,
-            description: 'AI analysis failed. Using heuristic results instead.',
-            suggestedFix: 'Review this area manually and re-run once AI is configured.'
-          },
-          heuristicResults
-        )
-      ),
-      overallScore: heuristicScore,
-      confidence: 0.2,
-      summary: 'Fallback heuristic analysis after AI failure.'
-    };
   }
+
+  console.error('[AI] All models failed. Falling back to heuristics.');
+  logMetrics('fallback', null, lastError);
+
+  return {
+    issues: heuristicResults.map((result) =>
+      normalizeAiIssue(
+        {
+          ...result,
+          description: 'AI analysis failed. Using heuristic results instead.',
+          suggestedFix: 'Review this area manually and re-run once AI is configured.'
+        },
+        heuristicResults
+      )
+    ),
+    overallScore: heuristicScore,
+    confidence: 0.2,
+    summary: 'Fallback heuristic analysis after AI failure.'
+  };
+}
+
+export function getAIMetrics() {
+  return { ...aiMetrics };
 }
