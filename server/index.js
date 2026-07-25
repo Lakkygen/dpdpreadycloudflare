@@ -1,127 +1,116 @@
 import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import compression from 'compression';
-import morgan from 'morgan';
 import dotenv from 'dotenv';
-
-import authRoutes from './routes/auth.js';
-import scanRoutes from './routes/scans.js';
-import billingRoutes from './routes/billing.js';
-import reportsRoutes from './routes/reports.js';
-import usersRoutes from './routes/users.js';
-import healthRoutes from './routes/health.js';
-import { errorHandler } from './middleware/errorHandler.js';
-import { generalLimiter, scanLimiter, authLimiter } from './middleware/rateLimit.js';
-import pool from './database/db.js';
-
 dotenv.config();
 
 const app = express();
+let startupError = null;
+let loadedRoutes = [];
 
-const allowedOrigins = [
-  process.env.CLIENT_URL,
-  process.env.VITE_CLIENT_URL,
-  'https://dpdpready.onrender.com',
-  'http://localhost:5173',
-  'http://localhost:4173',
-].filter(Boolean);
+try {
+  const pool = (await import('./database/db.js')).default;
+  loadedRoutes.push('db');
 
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error('Not allowed by CORS'));
-    },
-    credentials: true,
-  })
-);
+  const authRoutes = (await import('./routes/auth.js')).default;
+  loadedRoutes.push('auth');
 
-app.use(helmet());
-app.use(compression());
-app.use(morgan(':method :url :status :response-time ms'));
+  const scanRoutes = (await import('./routes/scans.js')).default;
+  loadedRoutes.push('scans');
 
-app.use('/api', generalLimiter);
-app.use('/api/scans', scanLimiter);
-app.use('/api/auth', authLimiter);
+  const billingRoutes = (await import('./routes/billing.js')).default;
+  loadedRoutes.push('billing');
 
-app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
+  const reportsRoutes = (await import('./routes/reports.js')).default;
+  loadedRoutes.push('reports');
 
-app.use(express.json({ limit: '2mb' }));
-app.use(express.urlencoded({ extended: true }));
+  const usersRoutes = (await import('./routes/users.js')).default;
+  loadedRoutes.push('users');
 
-app.use('/api', healthRoutes);
+  const healthRoutes = (await import('./routes/health.js')).default;
+  loadedRoutes.push('health');
 
-app.get('/api/test-db', async (req, res) => {
-  try {
-    const { rows } = await pool.query('SELECT NOW() as time, COUNT(*) as user_count FROM users');
-    res.json({
-      ok: true,
-      db_time: rows[0].time,
-      users: parseInt(rows[0].user_count),
-      message: 'Database connected'
-    });
-  } catch (err) {
-    res.status(500).json({
-      ok: false,
-      error: err.message,
-      hint: 'Did you run the SQL schema?'
-    });
-  }
-});
+  const { errorHandler } = await import('./middleware/errorHandler.js');
+  loadedRoutes.push('errorHandler');
 
-app.post('/api/test-auth', async (req, res) => {
-  try {
-    console.log('TEST-AUTH hit:', req.body);
-    const { email, password } = req.body || {};
+  const { generalLimiter, scanLimiter, authLimiter } = await import('./middleware/rateLimit.js');
+  loadedRoutes.push('rateLimit');
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password required' });
+  const helmet = (await import('helmet')).default;
+  const compression = (await import('compression')).default;
+  const morgan = (await import('morgan')).default;
+  const cors = (await import('cors')).default;
+
+  const allowedOrigins = [
+    process.env.CLIENT_URL,
+    process.env.VITE_CLIENT_URL,
+    'https://dpdpready.onrender.com',
+    'http://localhost:5173',
+    'http://localhost:4173',
+  ].filter(Boolean);
+
+  app.use(cors({ origin: (o, cb) => { if (!o || allowedOrigins.includes(o)) return cb(null, true); cb(new Error('CORS')); }, credentials: true }));
+  app.use(helmet());
+  app.use(compression());
+  app.use(morgan('tiny'));
+
+  app.use('/api', generalLimiter);
+  app.use('/api/scans', scanLimiter);
+  app.use('/api/auth', authLimiter);
+
+  app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
+  app.use(express.json({ limit: '2mb' }));
+
+  app.use('/api', healthRoutes);
+  app.use('/api/auth', authRoutes);
+  app.use('/api/scans', scanRoutes);
+  app.use('/api/billing', billingRoutes);
+  app.use('/api/reports', reportsRoutes);
+  app.use('/api/users', usersRoutes);
+
+  app.get('/api/test-db', async (req, res) => {
+    try {
+      const { rows } = await pool.query('SELECT NOW() as time');
+      res.json({ ok: true, db_time: rows[0].time });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err.message });
     }
+  });
 
-    const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    console.log('TEST-AUTH user found:', rows.length > 0);
+  app.use(express.static('dist'));
+  app.get('*', (req, res) => res.sendFile('index.html', { root: 'dist' }));
+  app.use(errorHandler);
 
-    if (rows.length === 0) {
-      return res.status(401).json({ error: 'User not found. Please register first.' });
+} catch (err) {
+  startupError = err;
+  console.error('🔥 STARTUP CRASH:', err.message, err.stack);
+}
+
+// DEBUG ROUTE — shows exactly what crashed
+app.get('/api/debug', (req, res) => {
+  res.json({
+    status: startupError ? 'CRASHED' : 'OK',
+    loaded: loadedRoutes,
+    error: startupError ? {
+      message: startupError.message,
+      stack: startupError.stack,
+    } : null,
+    env: {
+      node_env: process.env.NODE_ENV,
+      has_db_url: !!process.env.DATABASE_URL,
+      has_openrouter_key: !!process.env.OPENROUTER_API_KEY,
     }
+  });
+});
 
-    res.json({
-      ok: true,
-      user_exists: true,
-      email: rows[0].email,
-      plan: rows[0].plan
+// If crashed, all other API routes show the error
+if (startupError) {
+  app.use('/api/*', (req, res) => {
+    res.status(503).json({
+      error: 'Server crashed during startup',
+      detail: startupError.message,
+      loaded: loadedRoutes,
     });
-  } catch (err) {
-    console.error('TEST-AUTH error:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.use('/api/auth', authRoutes);
-app.use('/api/scans', scanRoutes);
-app.use('/api/billing', billingRoutes);
-app.use('/api/reports', reportsRoutes);
-app.use('/api/users', usersRoutes);
-
-app.use(express.static('dist'));
-
-app.get('*', (req, res) => {
-  res.sendFile('index.html', { root: 'dist' });
-});
-
-app.use(errorHandler);
+  });
+}
 
 const PORT = process.env.PORT || 3000;
-const server = app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
-const shutdown = () => {
-  server.close(() => {
-    pool.end(() => process.exit(0));
-  });
-};
-
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
+app.listen(PORT, () => console.log(`Port ${PORT} | Status: ${startupError ? 'CRASHED' : 'OK'}`));
