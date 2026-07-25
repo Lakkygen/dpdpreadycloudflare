@@ -19,7 +19,9 @@ dotenv.config();
 
 const app = express();
 
-// Log startup for debugging
+// CRITICAL: Trust Render's proxy so rate-limit can read real IPs
+app.set('trust proxy', 1);
+
 console.log('[STARTUP] NODE_ENV:', process.env.NODE_ENV);
 console.log('[STARTUP] PORT:', process.env.PORT || 3000);
 console.log('[STARTUP] Has DATABASE_URL:', !!process.env.DATABASE_URL);
@@ -47,19 +49,18 @@ app.use(helmet());
 app.use(compression());
 app.use(morgan(':method :url :status :response-time ms'));
 
-// Rate limits
+// Rate limits — now work behind Render proxy
 app.use('/api', generalLimiter);
 app.use('/api/scans', scanLimiter);
 app.use('/api/auth', authLimiter);
 
-// Stripe webhook needs raw body
+// Stripe webhook needs raw body before express.json()
 app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
 
-// Regular body parsing
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Health & debug routes (no auth)
+// Health & test routes (no auth)
 app.use('/api', healthRoutes);
 
 app.get('/api/test-db', async (req, res) => {
@@ -73,11 +74,7 @@ app.get('/api/test-db', async (req, res) => {
     });
   } catch (err) {
     console.error('[TEST-DB ERROR]', err);
-    res.status(500).json({
-      ok: false,
-      error: err.message,
-      hint: 'Did you run the SQL schema?'
-    });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
@@ -126,19 +123,8 @@ const server = app.listen(PORT, () => {
 
 const shutdown = () => {
   console.log('[SHUTDOWN] Closing server...');
-  server.close(() => {
-    pool.end(() => process.exit(0));
-  });
+  server.close(() => pool.end(() => process.exit(0)));
 };
 
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
-
-// Catch unhandled errors so Render logs show them
-process.on('uncaughtException', (err) => {
-  console.error('[UNCAUGHT EXCEPTION]', err);
-  process.exit(1);
-});
-process.on('unhandledRejection', (reason) => {
-  console.error('[UNHANDLED REJECTION]', reason);
-});
