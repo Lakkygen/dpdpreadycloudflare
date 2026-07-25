@@ -1,116 +1,83 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-
-import authRoutes from './routes/auth.js';
-import scanRoutes from './routes/scans.js';
-import billingRoutes from './routes/billing.js';
-import reportsRoutes from './routes/reports.js';
-import usersRoutes from './routes/users.js';
-import healthRoutes from './routes/health.js';
-import { errorHandler } from './middleware/errorHandler.js';
-
 dotenv.config();
 
 const app = express();
 
-const allowedOrigins = [
-  process.env.CLIENT_URL,
-  process.env.VITE_CLIENT_URL,
-  'https://dpdpready.onrender.com',
-  'http://localhost:5173',
-  'http://localhost:4173',
-].filter(Boolean);
+// CRASH CATCHER: Wrap everything in try/catch to expose the real error
+let startupError = null;
+try {
+  const helmet = await import('helmet').catch(() => null);
+  const compression = await import('compression').catch(() => null);
+  const morgan = await import('morgan').catch(() => null);
+  
+  if (helmet?.default) app.use(helmet.default());
+  if (compression?.default) app.use(compression.default());
+  if (morgan?.default) app.use(morgan.default(':method :url :status :response-time ms'));
 
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(null, true); // Allow all origins for now
-    },
-    credentials: true,
-  })
-);
+  const { default: pool } = await import('./database/db.js').catch(e => { throw new Error('DB import failed: ' + e.message); });
+  
+  const { default: healthRoutes } = await import('./routes/health.js').catch(e => { throw new Error('Health route import failed: ' + e.message); });
+  const { default: authRoutes } = await import('./routes/auth.js').catch(e => { throw new Error('Auth route import failed: ' + e.message); });
+  const { default: scanRoutes } = await import('./routes/scans.js').catch(e => { throw new Error('Scan route import failed: ' + e.message); });
+  const { default: billingRoutes } = await import('./routes/billing.js').catch(e => { throw new Error('Billing route import failed: ' + e.message); });
+  const { default: reportsRoutes } = await import('./routes/reports.js').catch(e => { throw new Error('Reports route import failed: ' + e.message); });
+  const { default: usersRoutes } = await import('./routes/users.js').catch(e => { throw new Error('Users route import failed: ' + e.message); });
+  const { errorHandler } = await import('./middleware/errorHandler.js').catch(e => { throw new Error('ErrorHandler import failed: ' + e.message); });
+  const { generalLimiter, scanLimiter, authLimiter } = await import('./middleware/rateLimit.js').catch(e => { throw new Error('RateLimit import failed: ' + e.message); });
 
-// Webhook route MUST be BEFORE express.json() - Stripe needs raw body
-app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
+  const allowedOrigins = [
+    process.env.CLIENT_URL,
+    process.env.VITE_CLIENT_URL,
+    'https://dpdpready.onrender.com',
+    'https://dpdpready.onrender.com',
+    'http://localhost:5173',
+    'http://localhost:4173',
+  ].filter(Boolean);
 
-// Regular body parsing for all other routes
-app.use(express.json({ limit: '2mb' }));
-app.use(express.urlencoded({ extended: true }));
+  app.use(cors({ origin: (origin, callback) => { if (!origin || allowedOrigins.includes(origin)) return callback(null, true); callback(new Error('Not allowed by CORS')); }, credentials: true }));
 
-// Health check (no auth required)
-app.use('/api', healthRoutes);
+  app.use('/api', generalLimiter);
+  app.use('/api/scans', scanLimiter);
+  app.use('/api/auth', authLimiter);
 
-// DIAGNOSTIC: Test database connection
-app.get('/api/test-db', async (req, res) => {
-  try {
-    const { rows } = await pool.query('SELECT NOW() as time, COUNT(*) as user_count FROM users');
-    res.json({ 
-      ok: true, 
-      db_time: rows[0].time,
-      users: parseInt(rows[0].user_count),
-      message: 'Database connected'
+  app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
+  app.use(express.json({ limit: '2mb' }));
+  app.use(express.urlencoded({ extended: true }));
+
+  app.use('/api', healthRoutes);
+  app.use('/api/auth', authRoutes);
+  app.use('/api/scans', scanRoutes);
+  app.use('/api/billing', billingRoutes);
+  app.use('/api/reports', reportsRoutes);
+  app.use('/api/users', usersRoutes);
+
+  app.use(express.static('dist'));
+  app.get('*', (req, res) => res.sendFile('index.html', { root: 'dist' }));
+  app.use(errorHandler);
+
+} catch (err) {
+  startupError = err;
+  console.error('🔥 STARTUP CRASH:', err);
+}
+
+// If startup failed, expose the error on EVERY route so you can see it
+if (startupError) {
+  app.use('*', (req, res) => {
+    res.status(503).json({
+      error: 'Server startup failed',
+      detail: startupError.message,
+      stack: process.env.NODE_ENV !== 'production' ? startupError.stack : undefined
     });
-  } catch (err) {
-    res.status(500).json({ 
-      ok: false, 
-      error: err.message,
-      hint: 'Did you run the SQL schema?'
-    });
-  }
-});
-
-// DIAGNOSTIC: Test auth endpoint (no login required)
-app.post('/api/test-auth', async (req, res) => {
-  try {
-    console.log('TEST-AUTH hit:', req.body);
-    const { email, password } = req.body || {};
-    
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password required' });
-    }
-    
-    // Try to find user
-    const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    console.log('TEST-AUTH user found:', rows.length > 0);
-    
-    if (rows.length === 0) {
-      return res.status(401).json({ error: 'User not found. Please register first.' });
-    }
-    
-    res.json({ 
-      ok: true, 
-      user_exists: true,
-      email: rows[0].email,
-      plan: rows[0].plan
-    });
-  } catch (err) {
-    console.error('TEST-AUTH error:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// API routes
-app.use('/api/auth', authRoutes);
-app.use('/api/scans', scanRoutes);
-app.use('/api/billing', billingRoutes);
-app.use('/api/reports', reportsRoutes);
-app.use('/api/users', usersRoutes);
-
-// Serve static files from dist/
-app.use(express.static('dist'));
-
-// SPA fallback: serve index.html for all non-API routes
-app.get('*', (req, res) => {
-  res.sendFile('index.html', { root: 'dist' });
-});
-
-// Global error handler (must be last)
-app.use(errorHandler);
+  });
+}
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  if (startupError) {
+    console.log(`Server running on port ${PORT} but in DEGRADED mode`);
+  } else {
+    console.log(`Server running on port ${PORT}`);
+  }
 });
