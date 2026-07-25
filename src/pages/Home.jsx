@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { motion, useScroll, useTransform } from "framer-motion";
 
 // ─── Icons ─────────────────────────────────────────────────────────
 const ShieldIcon = () => (
@@ -62,41 +61,16 @@ const GlobeIcon = () => (
   </svg>
 );
 
-const StarIcon = () => (
-  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-  </svg>
-);
-
 const ChevronDownIcon = () => (
   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="6 9 12 15 18 9"/>
   </svg>
 );
 
-const PlayIcon = () => (
-  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="5 3 19 12 5 21 5 3"/>
-  </svg>
-);
-
-// ─── Animation Variants ────────────────────────────────────────────
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
-};
-
 // ─── Main Component ────────────────────────────────────────────────
 export default function Home() {
   const [url, setUrl] = useState("");
   const [openFaq, setOpenFaq] = useState(0);
-  const { scrollYProgress } = useScroll();
-  const heroY = useTransform(scrollYProgress, [0, 0.5], [0, -100]);
 
   const features = [
     { icon: <ScanIcon />, title: "AI-Powered Website Scan", desc: "Our engine crawls your site and analyzes every page against all 25+ DPDP Act compliance checkpoints in seconds.", color: "bg-blue-50 text-blue-600" },
@@ -122,69 +96,32 @@ export default function Home() {
       <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-32 overflow-hidden">
         {/* Background blobs */}
         <div className="absolute inset-0 -z-10">
-          <motion.div 
-            animate={{ x: [0, 30, -20, 0], y: [0, -20, 10, 0], scale: [1, 1.1, 0.95, 1] }}
-            transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-blue-100/50 rounded-full blur-3xl opacity-60" 
-          />
-          <motion.div 
-            animate={{ x: [0, -20, 30, 0], y: [0, 15, -25, 0], scale: [1, 0.9, 1.05, 1] }}
-            transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-20 right-0 w-[500px] h-[500px] bg-indigo-100/40 rounded-full blur-3xl opacity-50" 
-          />
-          <motion.div 
-            animate={{ x: [0, 25, -15, 0], y: [0, -30, 20, 0], scale: [1, 1.15, 0.9, 1] }}
-            transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-teal-50/60 rounded-full blur-3xl opacity-50" 
-          />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-blue-100/50 rounded-full blur-3xl opacity-60 animate-pulse" />
+          <div className="absolute top-20 right-0 w-[500px] h-[500px] bg-indigo-100/40 rounded-full blur-3xl opacity-50 animate-pulse" style={{ animationDelay: '1s' }} />
+          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-teal-50/60 rounded-full blur-3xl opacity-50 animate-pulse" style={{ animationDelay: '2s' }} />
         </div>
 
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Left: Text */}
-            <motion.div 
-              initial={{ opacity: 0, x: -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
-              className="max-w-2xl"
-            >
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-100 rounded-full mb-8"
-              >
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-100 rounded-full mb-8">
                 <span className="relative flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500" />
                 </span>
                 <span className="text-sm font-semibold text-blue-700">Now Compliant with India's DPDP Act 2023</span>
-              </motion.div>
+              </div>
 
-              <motion.h1 
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, duration: 0.8 }}
-                className="text-5xl lg:text-6xl xl:text-7xl font-bold text-slate-900 leading-[1.1] tracking-tight mb-6"
-              >
+              <h1 className="text-5xl lg:text-6xl xl:text-7xl font-bold text-slate-900 leading-[1.1] tracking-tight mb-6">
                 Privacy Compliance, <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Automated</span>
-              </motion.h1>
+              </h1>
               
-              <motion.p 
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4, duration: 0.8 }}
-                className="text-lg lg:text-xl text-slate-600 leading-relaxed mb-10 max-w-xl"
-              >
+              <p className="text-lg lg:text-xl text-slate-600 leading-relaxed mb-10 max-w-xl">
                 Scan any website against India's Digital Personal Data Protection Act. Get an instant compliance score, AI-powered findings, and a board-ready PDF report — in under 2 minutes.
-              </motion.p>
+              </p>
 
-              <motion.div 
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5, duration: 0.8 }}
-                className="flex flex-col sm:flex-row gap-3 mb-6"
-              >
+              <div className="flex flex-col sm:flex-row gap-3 mb-6">
                 <div className="relative flex-1 group">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
                     <GlobeIcon />
@@ -203,27 +140,16 @@ export default function Home() {
                 >
                   <ScanIcon /> Scan Now
                 </Link>
-              </motion.div>
+              </div>
 
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.7 }}
-                className="flex items-center gap-6 text-sm text-slate-500"
-              >
+              <div className="flex items-center gap-6 text-sm text-slate-500">
                 <div className="flex items-center gap-2"><CheckCircleIcon /> <span>No credit card required</span></div>
                 <div className="flex items-center gap-2"><CheckCircleIcon /> <span>Free first scan</span></div>
-              </motion.div>
-            </motion.div>
+              </div>
+            </div>
 
             {/* Right: Mockup Card */}
-            <motion.div 
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.4, duration: 0.8 }}
-              style={{ y: heroY }}
-              className="relative lg:pl-8"
-            >
+            <div className="relative lg:pl-8">
               <div className="relative bg-white rounded-2xl shadow-2xl shadow-slate-900/10 border border-slate-200/60 overflow-hidden">
                 {/* Browser chrome */}
                 <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 border-b border-slate-100">
@@ -267,11 +193,7 @@ export default function Home() {
               </div>
 
               {/* Floating badge */}
-              <motion.div 
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute -bottom-4 -left-4 bg-white rounded-xl shadow-lg border border-slate-100 p-3 flex items-center gap-3"
-              >
+              <div className="absolute -bottom-4 -left-4 bg-white rounded-xl shadow-lg border border-slate-100 p-3 flex items-center gap-3 animate-bounce" style={{ animationDuration: '3s' }}>
                 <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
                   <CheckCircleIcon />
                 </div>
@@ -279,8 +201,8 @@ export default function Home() {
                   <p className="text-sm font-semibold text-slate-900">DPDP Compliant</p>
                   <p className="text-xs text-slate-500">Report generated</p>
                 </div>
-              </motion.div>
-            </motion.div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -288,86 +210,52 @@ export default function Home() {
       {/* ─── Social Proof ─────────────────────────────────────────── */}
       <section className="py-12 border-y border-slate-100 bg-slate-50/50">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <motion.p 
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            className="text-center text-sm text-slate-500 mb-8"
-          >
+          <p className="text-center text-sm text-slate-500 mb-8">
             Trusted by compliance teams at forward-thinking companies
-          </motion.p>
-          <motion.div 
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            className="flex flex-wrap items-center justify-center gap-8 lg:gap-16 opacity-50"
-          >
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-8 lg:gap-16 opacity-50">
             {["TechCorp India", "LegalEase", "DataGuard", "PrivaSys", "ComplyNow"].map((name) => (
-              <motion.span 
-                key={name}
-                variants={itemVariants}
-                className="text-lg font-bold text-slate-400 hover:text-slate-600 transition-colors cursor-default"
-              >
+              <span key={name} className="text-lg font-bold text-slate-400 hover:text-slate-600 transition-colors cursor-default">
                 {name}
-              </motion.span>
+              </span>
             ))}
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* ─── Features ─────────────────────────────────────────────── */}
       <section className="py-24 lg:py-32">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="text-center max-w-3xl mx-auto mb-16"
-          >
+          <div className="text-center max-w-3xl mx-auto mb-16">
             <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-3">Features</p>
             <h2 className="text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight mb-6">Everything you need for DPDP compliance</h2>
             <p className="text-lg text-slate-600 leading-relaxed">From automated scanning to board-ready reports, we've built the complete compliance toolkit for Indian businesses.</p>
-          </motion.div>
+          </div>
 
-          <motion.div 
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
-          >
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, i) => (
-              <motion.div 
+              <div 
                 key={i}
-                variants={itemVariants}
-                whileHover={{ y: -8, transition: { duration: 0.3 } }}
-                className="group bg-white rounded-2xl p-8 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-900/5 transition-all cursor-default"
+                className="group bg-white rounded-2xl p-8 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-900/5 transition-all cursor-default hover:-translate-y-2"
               >
                 <div className={`w-12 h-12 rounded-xl ${feature.color} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform`}>
                   {feature.icon}
                 </div>
                 <h3 className="text-lg font-semibold text-slate-900 mb-3">{feature.title}</h3>
                 <p className="text-slate-600 leading-relaxed text-sm">{feature.desc}</p>
-              </motion.div>
+              </div>
             ))}
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* ─── How It Works ─────────────────────────────────────────── */}
       <section className="py-24 bg-slate-50">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center max-w-3xl mx-auto mb-16"
-          >
+          <div className="text-center max-w-3xl mx-auto mb-16">
             <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-3">How It Works</p>
             <h2 className="text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight mb-6">Compliance in three simple steps</h2>
-          </motion.div>
+          </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {[
@@ -375,14 +263,7 @@ export default function Home() {
               { step: "02", title: "AI Analysis", desc: "Our engine scans pages, reads policies, and checks against 25+ DPDP checkpoints.", color: "bg-indigo-600" },
               { step: "03", title: "Get Report", desc: "Download a detailed PDF report with scores, findings, and actionable fixes.", color: "bg-violet-600" },
             ].map((item, i) => (
-              <motion.div 
-                key={i}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.2 }}
-                className="relative text-center"
-              >
+              <div key={i} className="relative text-center">
                 <div className={`w-16 h-16 ${item.color} rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg`}>
                   <span className="text-white text-xl font-bold">{item.step}</span>
                 </div>
@@ -393,7 +274,7 @@ export default function Home() {
                     <div className="h-0.5 bg-slate-200 w-24 mx-auto"/>
                   </div>
                 )}
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
@@ -402,13 +283,7 @@ export default function Home() {
       {/* ─── CTA Banner ───────────────────────────────────────────── */}
       <section className="py-24">
         <div className="max-w-5xl mx-auto px-6 lg:px-8">
-          <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            whileHover={{ scale: 1.01 }}
-            className="relative bg-slate-900 rounded-3xl p-12 lg:p-16 overflow-hidden text-center"
-          >
+          <div className="relative bg-slate-900 rounded-3xl p-12 lg:p-16 overflow-hidden text-center hover:scale-[1.01] transition-transform">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-indigo-600/20"/>
             <div className="relative z-10">
               <h2 className="text-3xl lg:text-4xl font-bold text-white mb-4">Ready to get compliant?</h2>
@@ -428,59 +303,36 @@ export default function Home() {
                 </Link>
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* ─── FAQ ──────────────────────────────────────────────────── */}
       <section className="py-24 bg-slate-50">
         <div className="max-w-3xl mx-auto px-6 lg:px-8">
-          <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
+          <div className="text-center mb-12">
             <p className="text-sm font-semibold text-blue-600 uppercase tracking-widest mb-3">FAQ</p>
             <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 tracking-tight">Questions? We've got answers.</h2>
-          </motion.div>
+          </div>
 
           <div className="space-y-3">
             {faqs.map((faq, i) => (
-              <motion.div 
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="bg-white rounded-xl border border-slate-100 overflow-hidden"
-              >
+              <div key={i} className="bg-white rounded-xl border border-slate-100 overflow-hidden">
                 <button 
                   onClick={() => setOpenFaq(openFaq === i ? -1 : i)}
                   className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-slate-50 transition-colors"
                 >
                   <span className="font-semibold text-slate-900 pr-4">{faq.q}</span>
-                  <motion.span 
-                    animate={{ rotate: openFaq === i ? 180 : 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
+                  <span className={`transform transition-transform duration-300 ${openFaq === i ? 'rotate-180' : ''}`}>
                     <ChevronDownIcon />
-                  </motion.span>
+                  </span>
                 </button>
-                <AnimatePresence>
-                  {openFaq === i && (
-                    <motion.div 
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3 }}
-                      className="overflow-hidden"
-                    >
-                      <p className="px-6 pb-4 text-slate-600 leading-relaxed">{faq.a}</p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
+                {openFaq === i && (
+                  <div className="px-6 pb-4 text-slate-600 leading-relaxed animate-fadeIn">
+                    {faq.a}
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         </div>
