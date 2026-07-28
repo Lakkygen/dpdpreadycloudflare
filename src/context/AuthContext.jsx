@@ -6,7 +6,6 @@ import api from '../services/api';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// DIAGNOSTIC: Log what we got
 console.log('[AUTH] VITE_SUPABASE_URL:', supabaseUrl ? 'SET' : 'MISSING');
 console.log('[AUTH] VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'SET (len=' + supabaseAnonKey?.length + ')' : 'MISSING');
 
