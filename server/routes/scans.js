@@ -28,7 +28,12 @@ router.post('/', async (req, res, next) => {
        RETURNING *`,
       [req.user.id, url, result.overallScore, JSON.stringify(result)]
     );
-    res.status(201).json(dbResult.rows[0]);
+    
+    // Return format that frontend expects
+    res.status(201).json({
+      scanId: dbResult.rows[0].id,
+      ...dbResult.rows[0]
+    });
   } catch (err) {
     next(err);
   }
@@ -57,6 +62,22 @@ router.get('/:id', async (req, res, next) => {
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Scan not found' });
+    }
+    res.json({ scan: result.rows[0] });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Status endpoint for polling
+router.get('/:id/status', async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, status, overall_score FROM scans WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).).json({ error: 'Scan not found' });
     }
     res.json(result.rows[0]);
   } catch (err) {
