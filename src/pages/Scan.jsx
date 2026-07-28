@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FiSearch, FiLoader, FiShield, FiCheckCircle, FiXCircle, FiAlertTriangle } from "react-icons/fi";
 import { toast } from "react-toastify";
+import api from "../services/api";
 
 const STEPS = [
   { label: "Initializing", icon: <FiLoader className="animate-spin" /> },
@@ -49,30 +50,16 @@ export default function Scan() {
     setResults(null);
     setScanId(null);
 
-    const token = localStorage.getItem("authToken");
-    if (!token) {
-      toast.error("Please log in to scan");
-      navigate("/login");
-      return;
-    }
-
     try {
       toast.loading("Starting scan...", { id: "scan-start" });
 
-      const res = await fetch("/api/scans", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ url: scanUrl }),
-      });
+      // Use api service instead of raw fetch
+      const data = await api.post('/scans', { url: scanUrl });
 
-      const data = await res.json();
       toast.dismiss("scan-start");
 
-      if (!res.ok) {
-        throw new Error(data.error || `Failed to start scan (${res.status})`);
+      if (!data.scanId) {
+        throw new Error("Invalid response from server: missing scanId");
       }
 
       setScanId(data.scanId);
@@ -81,28 +68,26 @@ export default function Scan() {
 
     } catch (err) {
       toast.dismiss("scan-start");
-      setError(err.message);
+      console.error('SCAN ERROR:', err);
+      
+      let msg = err.message || 'Scan failed';
+      if (msg.includes('<!DOCTYPE')) {
+        msg = 'Server returned HTML instead of JSON. The API may be down or the URL is wrong.';
+      } else if (msg.includes('Unauthorized') || msg.includes('401')) {
+        msg = 'Please log in again.';
+      }
+      
+      setError(msg);
       setScanning(false);
     }
   };
 
   const startPolling = (id) => {
-    const token = localStorage.getItem("authToken");
     let stepIndex = 0;
 
     pollRef.current = setInterval(async () => {
       try {
-        const res = await fetch(`/api/scans/${id}/status`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-
-        if (!res.ok) {
-          clearInterval(pollRef.current);
-          setError(data.error || "Scan status check failed");
-          setScanning(false);
-          return;
-        }
+        const data = await api.get(`/scans/${id}/status`);
 
         const progressMap = { pending: 0, crawling: 20, analysing: 60, completed: 100, failed: 100 };
         const prog = progressMap[data.status] || (data.overall_score ? 100 : 0);
@@ -130,15 +115,13 @@ export default function Scan() {
 
   const fetchResults = async (id) => {
     setLoadingResults(true);
-    const token = localStorage.getItem("authToken");
 
     try {
-      const res = await fetch(`/api/scans/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const data = await api.get(`/scans/${id}`);
 
-      if (!res.ok) throw new Error(data.error || "Failed to fetch results");
+      if (!data.scan) {
+        throw new Error("Invalid response: missing scan data");
+      }
 
       setResults(data.scan);
       setScanning(false);
