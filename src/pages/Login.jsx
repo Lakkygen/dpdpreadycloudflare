@@ -8,17 +8,29 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const [errorMsg, setErrorMsg] = useState('');
+  const { signIn, authError } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMsg('');
     setLoading(true);
+
     try {
       await signIn(email, password);
       navigate('/dashboard');
     } catch (err) {
-      alert(err.message || 'Login failed');
+      console.error('LOGIN ERROR:', err);
+      let msg = err.message || 'Login failed';
+      if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+        msg = 'Cannot connect to server. Check your internet or Supabase may be paused.';
+      } else if (msg.includes('Invalid login')) {
+        msg = 'Wrong email or password.';
+      } else if (msg.includes('Email not confirmed')) {
+        msg = 'Please confirm your email first. Check your inbox.';
+      }
+      setErrorMsg(msg);
     } finally {
       setLoading(false);
     }
@@ -35,6 +47,20 @@ export default function Login() {
           <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
           <p className="text-slate-500 mt-1">Sign in to your compliance dashboard</p>
         </div>
+
+        {/* Auth config error (from env vars) */}
+        {authError && (
+          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+            <strong>Setup Error:</strong> {authError}
+          </div>
+        )}
+
+        {/* Login attempt error */}
+        {errorMsg && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+            {errorMsg}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -69,7 +95,7 @@ export default function Login() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || authError}
             className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
           >
             {loading ? <><FiLoader className="animate-spin" /> Signing in...</> : 'Sign In'}
