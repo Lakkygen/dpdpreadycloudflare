@@ -1,130 +1,103 @@
 import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import compression from 'compression';
-import morgan from 'morgan';
 import dotenv from 'dotenv';
-
-import authRoutes from './routes/auth.js';
-import scanRoutes from './routes/scans.js';
-import billingRoutes from './routes/billing.js';
-import reportsRoutes from './routes/reports.js';
-import usersRoutes from './routes/users.js';
-import healthRoutes from './routes/health.js';
-import { errorHandler } from './middleware/errorHandler.js';
-import { generalLimiter, scanLimiter, authLimiter } from './middleware/rateLimit.js';
-import pool from './database/db.js';
-
 dotenv.config();
 
 const app = express();
+let startupErrors = [];
+let loadedModules = [];
 
-// CRITICAL: Trust Render's proxy so rate-limit can read real IPs
-app.set('trust proxy', 1);
+// Try loading each module and catch failures
+async function loadModule(name, importPath) {
+  try {
+    const mod = await import(importPath);
+    loadedModules.push(name);
+    return mod;
+  } catch (err) {
+    startupErrors.push({ module: name, error: err.message, stack: err.stack });
+    console.error(`[STARTUP FAIL] ${name}:`, err.message);
+    return null;
+  }
+}
 
-console.log('[STARTUP] NODE_ENV:', process.env.NODE_ENV);
-console.log('[STARTUP] PORT:', process.env.PORT || 3000);
-console.log('[STARTUP] Has DATABASE_URL:', !!process.env.DATABASE_URL);
-console.log('[STARTUP] Has OPENROUTER_API_KEY:', !!process.env.OPENROUTER_API_KEY);
+// Load all modules safely
+const pool = await loadModule('db', './database/db.js');
+const { errorHandler } = await loadModule('errorHandler', './middleware/errorHandler.js') || {};
+const rateLimit = await loadModule('rateLimit', './middleware/rateLimit.js') || {};
+const authRoutes = await loadModule('auth', './routes/auth.js');
+const scanRoutes = await loadModule('scans', './routes/scans.js');
+const billingRoutes = await loadModule('billing', './routes/billing.js');
+const reportsRoutes = await loadModule('reports', './routes/reports.js');
+const usersRoutes = await loadModule('users', './routes/users.js');
+const healthRoutes = await loadModule('health', './routes/health.js');
 
-const allowedOrigins = [
-  process.env.CLIENT_URL,
-  process.env.VITE_CLIENT_URL,
-  'https://dpdpready.onrender.com',
-  'http://localhost:5173',
-  'http://localhost:4173',
-].filter(Boolean);
-
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error('Not allowed by CORS'));
-    },
-    credentials: true,
-  })
-);
-
-app.use(helmet());
-app.use(compression());
-app.use(morgan(':method :url :status :response-time ms'));
-
-// Rate limits — now work behind Render proxy
-app.use('/api', generalLimiter);
-app.use('/api/scans', scanLimiter);
-app.use('/api/auth', authLimiter);
-
-// Stripe webhook needs raw body before express.json()
-app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
-
+// Basic middleware (always works)
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Health & test routes (no auth)
-app.use('/api', healthRoutes);
-
-app.get('/api/test-db', async (req, res) => {
-  try {
-    const { rows } = await pool.query('SELECT NOW() as time, COUNT(*) as user_count FROM users');
-    res.json({
-      ok: true,
-      db_time: rows[0].time,
-      users: parseInt(rows[0].user_count),
-      message: 'Database connected'
-    });
-  } catch (err) {
-    console.error('[TEST-DB ERROR]', err);
-    res.status(500).json({ ok: false, error: err.message });
-  }
+// CORS
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  next();
 });
 
-app.post('/api/test-auth', async (req, res) => {
-  try {
-    const { email, password } = req.body || {};
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password required' });
+// Mount routes that loaded successfully
+if (healthRoutes?.default) app.use('/api', healthRoutes.default);
+if (authRoutes?.default) app.use('/api/auth', authRoutes.default);
+if (scanRoutes?.default) app.use('/api/scans', scanRoutes.default);
+if (billingRoutes?.default) app.use('/api/billing', billingRoutes.default);
+if (reportsRoutes?.default) app.use('/api/reports', reportsRoutes.default);
+if (usersRoutes?.default) app.use('/api/users', usersRoutes.default);
+
+// Test DB route (only if pool loaded)
+if (pool?.default) {
+  app.get('/api/test-db', async (req, res) => {
+    try {
+      const { rows } = await pool.default.query('SELECT NOW() as time');
+      res.json({ ok: true, db_time: rows[0].time });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: err.message });
     }
-    const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (rows.length === 0) {
-      return res.status(401).json({ error: 'User not found. Please register first.' });
+  });
+}
+
+// Diagnostic endpoint
+app.get('/api/debug', (req, res) => {
+  res.json({
+    status: startupErrors.length > 0 ? 'DEGRADED' : 'OK',
+    loaded: loadedModules,
+    errors: startupErrors.map(e => ({ module: e.module, error: e.error })),
+    env: {
+      node_env: process.env.NODE_ENV,
+      has_db_url: !!process.env.DATABASE_URL,
+      has_openrouter: !!process.env.OPENROUTER_API_KEY,
     }
-    res.json({
-      ok: true,
-      user_exists: true,
-      email: rows[0].email,
-      plan: rows[0].plan
-    });
-  } catch (err) {
-    console.error('[TEST-AUTH ERROR]', err);
-    res.status(500).json({ error: err.message });
-  }
+  });
 });
 
-// API routes
-app.use('/api/auth', authRoutes);
-app.use('/api/scans', scanRoutes);
-app.use('/api/billing', billingRoutes);
-app.use('/api/reports', reportsRoutes);
-app.use('/api/users', usersRoutes);
-
-// Static files & SPA fallback
+// Static files
 app.use(express.static('dist'));
+
+// SPA fallback (AFTER API routes)
 app.get('*', (req, res) => {
   res.sendFile('index.html', { root: 'dist' });
 });
 
-// Global error handler (must be last)
-app.use(errorHandler);
+// Error handler
+if (errorHandler) {
+  app.use(errorHandler);
+} else {
+  app.use((err, req, res, next) => {
+    console.error('[ERROR]', err);
+    res.status(500).json({ error: 'Internal server error' });
+  });
+}
 
 const PORT = process.env.PORT || 3000;
-const server = app.listen(PORT, () => {
-  console.log(`[STARTUP] Server running on port ${PORT}`);
+app.listen(PORT, () => {
+  console.log(`[STARTUP] Port ${PORT} | Loaded: ${loadedModules.join(', ') || 'NONE'}`);
+  if (startupErrors.length > 0) {
+    console.log(`[STARTUP] Failures: ${startupErrors.map(e => e.module).join(', ')}`);
+  }
 });
-
-const shutdown = () => {
-  console.log('[SHUTDOWN] Closing server...');
-  server.close(() => pool.end(() => process.exit(0)));
-};
-
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
