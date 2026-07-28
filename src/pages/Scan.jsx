@@ -49,7 +49,6 @@ export default function Scan() {
     setResults(null);
     setScanId(null);
 
-    // FIX: was "token", now "authToken" to match AuthContext
     const token = localStorage.getItem("authToken");
     if (!token) {
       toast.error("Please log in to scan");
@@ -88,7 +87,7 @@ export default function Scan() {
   };
 
   const startPolling = (id) => {
-    const token = localStorage.getItem("authToken"); // FIX: was "token"
+    const token = localStorage.getItem("authToken");
     let stepIndex = 0;
 
     pollRef.current = setInterval(async () => {
@@ -98,8 +97,15 @@ export default function Scan() {
         });
         const data = await res.json();
 
+        if (!res.ok) {
+          clearInterval(pollRef.current);
+          setError(data.error || "Scan status check failed");
+          setScanning(false);
+          return;
+        }
+
         const progressMap = { pending: 0, crawling: 20, analysing: 60, completed: 100, failed: 100 };
-        const prog = progressMap[data.status] || 0;
+        const prog = progressMap[data.status] || (data.overall_score ? 100 : 0);
         setProgress(prog);
 
         const newStepIndex = Math.min(Math.floor((prog / 100) * (STEPS.length - 1)), STEPS.length - 1);
@@ -108,13 +114,13 @@ export default function Scan() {
           setCurrentStep(newStepIndex);
         }
 
-        if (data.status === "completed") {
+        if (data.status === "completed" || data.overall_score) {
           clearInterval(pollRef.current);
           fetchResults(id);
         } else if (data.status === "failed") {
           clearInterval(pollRef.current);
           setScanning(false);
-          setError("Scan failed on the server. The website may block crawlers or be unreachable.");
+          setError("Scan failed on the server.");
         }
       } catch (err) {
         console.error("Poll error:", err);
@@ -124,7 +130,7 @@ export default function Scan() {
 
   const fetchResults = async (id) => {
     setLoadingResults(true);
-    const token = localStorage.getItem("authToken"); // FIX: was "token"
+    const token = localStorage.getItem("authToken");
 
     try {
       const res = await fetch(`/api/scans/${id}`, {
