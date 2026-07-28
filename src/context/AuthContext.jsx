@@ -5,9 +5,18 @@ import api from '../services/api';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// DIAGNOSTIC: Log what we got
+console.log('[AUTH] VITE_SUPABASE_URL:', supabaseUrl ? 'SET' : 'MISSING');
+console.log('[AUTH] VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'SET (len=' + supabaseAnonKey?.length + ')' : 'MISSING');
+
 const supabase = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
+
+if (!supabase) {
+  console.error('[AUTH] Supabase client is NULL — check env vars!');
+}
 
 export const AuthContext = createContext(null);
 
@@ -15,6 +24,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState(null);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -56,6 +66,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (!supabase) {
+      setAuthError('Supabase not configured — check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY');
       setLoading(false);
       return;
     }
@@ -84,35 +95,51 @@ export function AuthProvider({ children }) {
   }, [buildUser]);
 
   const signIn = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
-    await buildUser(data.session);
-    toast.success(`Welcome back, ${email}`);
+    if (!supabase) throw new Error('Authentication is not configured. Please contact support.');
+    
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+      await buildUser(data.session);
+      toast.success(`Welcome back, ${email}`);
+    } catch (err) {
+      console.error('[SIGNIN ERROR]', err);
+      throw err;
+    }
   };
 
   const signUp = async (email, password, metadata = {}) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: metadata,
-        emailRedirectTo: `${window.location.origin}/dashboard`,
-      },
-    });
-    if (error) throw error;
+    if (!supabase) throw new Error('Authentication is not configured. Please contact support.');
+    
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: metadata,
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+        },
+      });
+      if (error) throw error;
 
-    if (data.session) {
-      await buildUser(data.session);
-      toast.success('Account created – welcome!');
-    } else {
-      toast.success('Check your email to confirm your account.');
+      if (data.session) {
+        await buildUser(data.session);
+        toast.success('Account created – welcome!');
+      } else {
+        toast.success('Check your email to confirm your account.');
+      }
+    } catch (err) {
+      console.error('[SIGNUP ERROR]', err);
+      throw err;
     }
   };
 
   const signInWithGoogle = async () => {
+    if (!supabase) throw new Error('Authentication is not configured.');
+    
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -123,7 +150,7 @@ export function AuthProvider({ children }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    if (supabase) await supabase.auth.signOut();
     localStorage.removeItem('authToken');
     setUser(null);
     setSession(null);
@@ -148,6 +175,7 @@ export function AuthProvider({ children }) {
     user,
     session,
     loading,
+    authError,
     signIn,
     signUp,
     signInWithGoogle,
@@ -155,7 +183,6 @@ export function AuthProvider({ children }) {
     refreshPlan,
   };
 
-  // THIS WAS THE BUG — was: return {children};
   return (
     <AuthContext.Provider value={value}>
       {children}
