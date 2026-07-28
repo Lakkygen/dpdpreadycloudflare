@@ -28,7 +28,7 @@ router.post('/', async (req, res, next) => {
        RETURNING *`,
       [req.user.id, url, result.overallScore, JSON.stringify(result)]
     );
-    
+
     // Return format that frontend expects
     res.status(201).json({
       scanId: dbResult.rows[0].id,
@@ -77,7 +77,7 @@ router.get('/:id/status', async (req, res, next) => {
       [req.params.id, req.user.id]
     );
     if (result.rows.length === 0) {
-      return res.status(404).).json({ error: 'Scan not found' });
+      return res.status(404).json({ error: 'Scan not found' });
     }
     res.json(result.rows[0]);
   } catch (err) {
