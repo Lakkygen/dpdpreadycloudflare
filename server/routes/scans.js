@@ -29,7 +29,6 @@ router.post('/', async (req, res, next) => {
       [req.user.id, url, result.overallScore, JSON.stringify(result)]
     );
 
-    // Return format that frontend expects
     res.status(201).json({
       scanId: dbResult.rows[0].id,
       ...dbResult.rows[0]
@@ -69,7 +68,6 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-// Status endpoint for polling
 router.get('/:id/status', async (req, res, next) => {
   try {
     const result = await pool.query(
