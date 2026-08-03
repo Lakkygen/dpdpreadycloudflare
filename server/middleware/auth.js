@@ -1,15 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 import pool from '../database/db.js';
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Try server-specific vars first, then fall back to VITE_ vars (Render has these)
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('[AUTH] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+if (!supabaseUrl || !supabaseKey) {
+  console.error('[AUTH] Missing Supabase URL or key. Set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (or VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY)');
 }
 
-const supabase = supabaseUrl && supabaseServiceKey
-  ? createClient(supabaseUrl, supabaseServiceKey)
+const supabase = supabaseUrl && supabaseKey
+  ? createClient(supabaseUrl, supabaseKey)
   : null;
 
 export async function requireAuth(req, res, next) {
@@ -39,7 +40,7 @@ export async function checkScanLimit(req, res, next) {
   if (!req.user) return next();
 
   try {
-    // Auto-create user in local DB if missing (so FK constraints don't break)
+    // Auto-create user in local DB if missing
     await pool.query(
       `INSERT INTO users (id, email, plan, created_at, updated_at)
        VALUES ($1, $2, 'free', NOW(), NOW())
