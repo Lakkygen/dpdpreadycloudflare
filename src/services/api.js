@@ -10,7 +10,12 @@ export const api = {
       ...options.headers,
     };
     const token = getToken();
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+      console.log(`[API] ${endpoint} — token length: ${token.length}`);
+    } else {
+      console.warn(`[API] ${endpoint} — NO TOKEN FOUND`);
+    }
 
     const config = {
       ...options,
@@ -21,7 +26,8 @@ export const api = {
       const response = await fetch(url, config);
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Request failed');
+        console.error(`[API] ${endpoint} error:`, data);
+        throw new Error(data.error || `Request failed (${response.status})`);
       }
       return data;
     } catch (error) {
