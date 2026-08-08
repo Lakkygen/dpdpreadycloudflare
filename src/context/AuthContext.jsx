@@ -6,6 +6,9 @@ import api from '../services/api';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+console.log('[AUTH] URL present?', !!supabaseUrl);
+console.log('[AUTH] Key present?', !!supabaseAnonKey);
+
 const supabase = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
@@ -100,7 +103,9 @@ export function AuthProvider({ children }) {
   }, [buildUser]);
 
   const signIn = async (email, password) => {
-    if (!supabase) throw new Error('Authentication is not configured. Please contact support.');
+    if (!supabase) {
+      throw new Error('Authentication is not configured. Please contact support.');
+    }
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -112,12 +117,14 @@ export function AuthProvider({ children }) {
       toast.success(`Welcome back, ${email}`);
     } catch (err) {
       console.error('[SIGNIN ERROR]', err);
-      throw err;
+      throw new Error(err.message || 'Sign in failed');
     }
   };
 
   const signUp = async (email, password, metadata = {}) => {
-    if (!supabase) throw new Error('Authentication is not configured. Please contact support.');
+    if (!supabase) {
+      throw new Error('Authentication is not configured. Please contact support.');
+    }
 
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -138,12 +145,14 @@ export function AuthProvider({ children }) {
       }
     } catch (err) {
       console.error('[SIGNUP ERROR]', err);
-      throw err;
+      throw new Error(err.message || 'Sign up failed');
     }
   };
 
   const signInWithGoogle = async () => {
-    if (!supabase) throw new Error('Authentication is not configured.');
+    if (!supabase) {
+      throw new Error('Authentication is not configured.');
+    }
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
